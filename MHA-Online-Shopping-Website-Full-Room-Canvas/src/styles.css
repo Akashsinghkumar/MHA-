@@ -380,3 +380,28 @@ body[data-page="furniture"] #roomPlanner .planner-product-info span{color:#7f155
 .exact-footer .footer-legal-links a:hover{color:#ffd24d}
 @media(max-width:1000px){.exact-footer-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.footer-col-sep{border-left:0;padding-left:0}}
 @media(max-width:560px){.exact-footer-grid{grid-template-columns:1fr}}
+
+/* Redesigned "Why Choose MHA?" section */
+.home-why.why-redesign{background:linear-gradient(135deg,#4b0a32 0%,#6d0b45 60%,#42072b 100%);border-radius:18px;padding:36px 26px 40px;margin:26px 0;color:#fff;box-shadow:0 16px 36px rgba(75,10,50,.22)}
+.why-header{text-align:center;margin-bottom:26px}
+.why-header h2{margin:0 0 8px;font-size:clamp(24px,3vw,32px);font-weight:900;color:#fff;display:flex;align-items:center;justify-content:center;gap:14px}
+.why-gold{color:#ffd24d}
+.why-line{display:inline-block;width:54px;height:2px;background:rgba(255,255,255,.45);border-radius:99px}
+.why-header p{margin:0;font-size:14.5px;color:#f3dce9;opacity:.95}
+.why-cards-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.why-card{position:relative;background:#fff;color:#1e293b;border-radius:16px;padding:70px 18px 24px;overflow:hidden;box-shadow:0 12px 26px rgba(0,0,0,.18);transition:transform .2s ease,box-shadow .2s ease}
+.why-card:hover{transform:translateY(-4px);box-shadow:0 18px 34px rgba(0,0,0,.26)}
+.why-card h3{margin:0 0 8px;font-size:16.5px;font-weight:800;color:#4b0a32}
+.why-card p{margin:0;font-size:13.5px;line-height:1.5;color:#475569}
+.why-corner{position:absolute;top:0;left:0;width:96px;height:56px;border-bottom-right-radius:42px;display:flex;align-items:center;padding-left:20px}
+.why-card:after{content:"";position:absolute;right:-16px;bottom:-18px;width:120px;height:42px;border-top-left-radius:50px;opacity:.55}
+.why-pink .why-corner{background:linear-gradient(135deg,#d91370,#f04296)}
+.why-pink:after{background:#f472b6}
+.why-gold-card .why-corner{background:linear-gradient(135deg,#f5b700,#ffd84d)}
+.why-gold-card:after{background:#facc15}
+.why-purple .why-corner{background:linear-gradient(135deg,#e9d5ff,#d8b4fe)}
+.why-purple:after{background:#c084fc}
+.why-blue .why-corner{background:linear-gradient(135deg,#bae6fd,#7dd3fc)}
+.why-blue:after{background:#7dd3fc}
+@media(max-width:950px){.why-cards-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:540px){.why-cards-grid{grid-template-columns:1fr}.why-line{width:26px}}
