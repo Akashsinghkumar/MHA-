@@ -405,3 +405,11 @@ body[data-page="furniture"] #roomPlanner .planner-product-info span{color:#7f155
 .why-blue:after{background:#7dd3fc}
 @media(max-width:950px){.why-cards-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:540px){.why-cards-grid{grid-template-columns:1fr}.why-line{width:26px}}
+
+/* Uniform full-bleed product card image sizing across Best Sellers, New Arrivals & Shop */
+.home-product-card .home-product-visual,
+.home-product-visual{height:195px!important;min-height:195px!important;padding:0!important;overflow:hidden}
+.home-product-card .home-product-visual img,
+.home-product-visual img{width:100%!important;height:100%!important;object-fit:cover!important;object-position:center!important;padding:0!important;display:block}
+.pc>.im{height:210px!important;min-height:210px!important;padding:0!important;overflow:hidden}
+.pc>.im img{width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;object-fit:cover!important;object-position:center!important;padding:0!important;display:block}
