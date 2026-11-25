@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { apiFetch, getToken, setToken, resolveBackendImage } from '../api.js';
 import { authClient } from '../neonAuth.js';
+import { FALLBACK_PRODUCTS, FALLBACK_OFFERS, FALLBACK_FAQS } from '../data/fallbackCatalog.js';
 
 const StoreContext = createContext(null);
 
@@ -14,12 +15,12 @@ export const mediaUrl = (url, fallbackImg = 'AllEle.webp') => {
 };
 
 export function StoreProvider({ children }) {
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState(FALLBACK_PRODUCTS);
   const [banners, setBanners] = useState([]);
   const [siteContent, setSiteContent] = useState({});
-  const [offers, setOffers] = useState([]);
+  const [offers, setOffers] = useState(FALLBACK_OFFERS);
   const [gallery, setGallery] = useState([]);
-  const [faqs, setFaqs] = useState([]);
+  const [faqs, setFaqs] = useState(FALLBACK_FAQS);
   const [supportConfig, setSupportConfig] = useState({
     shipping_policy: 'Delivery estimates and service availability are confirmed at checkout.',
     warranty_policy: 'Warranty coverage depends on the product and manufacturer.',
