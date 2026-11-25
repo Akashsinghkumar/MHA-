@@ -3,48 +3,48 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 // ==================== CORE E-COMMERCE ====================
 
 model User {
-  id           Int      @id @default(autoincrement())
+  id           Int       @id @default(autoincrement())
   name         String
-  email        String?  @unique
-  phone        String   @unique
-  passwordHash String   @map("password_hash")
-  referralCode String   @unique @map("referral_code")
-  referredById Int?     @map("referred_by_id")
-  referredBy   User?    @relation("ReferralTree", fields: [referredById], references: [id])
-  referrals    User[]   @relation("ReferralTree")
-  kycStatus    String   @default("Pending") @map("kyc_status")
-  isBlocked    Boolean  @default(false) @map("is_blocked")
-  carryForward Decimal  @default(0) @map("carry_forward")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  email        String?   @unique
+  phone        String    @unique
+  passwordHash String    @map("password_hash")
+  referralCode String    @unique @map("referral_code")
+  referredById Int?      @map("referred_by_id")
+  referredBy   User?     @relation("ReferralTree", fields: [referredById], references: [id])
+  referrals    User[]    @relation("ReferralTree")
+  kycStatus    String    @default("Pending") @map("kyc_status") // Pending, Submitted, Verified, Rejected
+  isBlocked    Boolean   @default(false) @map("is_blocked")
+  carryForward Decimal   @default(0) @map("carry_forward") @db.Decimal(12, 2)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  addresses         Address[]
-  cartItems         CartItem[]
-  orders            Order[]
-  wishlists         Wishlist[]
-  reviews           Review[]
-  supportTickets    SupportTicket[]
-  warrantyClaims    WarrantyClaim[]
-  serviceBookings   ServiceBooking[]
-  galleryItems      GalleryItem[]
-  units             MemberUnit[]
-  commissionsEarned Commission[]      @relation("CommissionEarner")
-  commissionsFrom   Commission[]      @relation("CommissionSource")
-  profitShares      ProfitSharing[]
-  sponsorBenefits   SponsorBenefit[]
-  salaryRanks       SalaryRank[]
-  fundProgress      FundProgress?
-  rewardClaims      RewardClaim[]
-  ledgerEntries     FinancialLedger[]
-  payouts           Payout[]
-  kycDocuments      KycDocument[]
+  addresses        Address[]
+  cartItems        CartItem[]
+  orders           Order[]
+  wishlists        Wishlist[]
+  reviews          Review[]
+  supportTickets   SupportTicket[]
+  warrantyClaims   WarrantyClaim[]
+  serviceBookings  ServiceBooking[]
+  galleryItems     GalleryItem[]
+  units            MemberUnit[]
+  commissionsEarned Commission[]     @relation("CommissionEarner")
+  commissionsFrom  Commission[]      @relation("CommissionSource")
+  profitShares     ProfitSharing[]
+  sponsorBenefits  SponsorBenefit[]
+  salaryRanks      SalaryRank[]
+  fundProgress     FundProgress?
+  rewardClaims     RewardClaim[]
+  ledgerEntries    FinancialLedger[]
+  payouts          Payout[]
+  kycDocuments     KycDocument[]
 
   @@map("users")
 }
@@ -67,14 +67,14 @@ model Address {
 }
 
 model Category {
-  id        Int        @id @default(autoincrement())
-  name      String     @unique
-  slug      String     @unique
-  parentId  Int?       @map("parent_id")
-  parent    Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children  Category[] @relation("CategoryHierarchy")
-  imageUrl  String?    @map("image_url")
-  sortOrder Int        @default(0) @map("sort_order")
+  id       Int        @id @default(autoincrement())
+  name     String     @unique
+  slug     String     @unique
+  parentId Int?       @map("parent_id")
+  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryHierarchy")
+  imageUrl String?    @map("image_url")
+  sortOrder Int       @default(0) @map("sort_order")
 
   products Product[]
 
@@ -84,19 +84,19 @@ model Category {
 model Product {
   id          Int      @id @default(autoincrement())
   name        String
-  description String?
+  description String?  @db.Text
   categoryId  Int      @map("category_id")
   category    Category @relation(fields: [categoryId], references: [id])
   subcategory String
   brand       String   @default("MHA")
-  actualPrice Decimal  @map("actual_price")
-  offerPrice  Decimal  @map("offer_price")
-  rating      Decimal  @default(4.5)
+  actualPrice Decimal  @map("actual_price") @db.Decimal(12, 2)
+  offerPrice  Decimal  @map("offer_price") @db.Decimal(12, 2)
+  rating      Decimal  @default(4.5) @db.Decimal(2, 1)
   stock       Int      @default(50)
   imageUrl    String   @map("image_url")
   emoji       String?
   accentColor String?  @map("accent_color")
-  tags        String   @default("[]") // JSON array string
+  tags        String[] @default([]) // e.g. ["Best Sellers", "New Arrivals", "Top Rated", "Popular Items"]
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -138,24 +138,24 @@ model CartItem {
 }
 
 model Order {
-  id              Int      @id @default(autoincrement())
-  orderNumber     String   @unique @map("order_number")
-  userId          Int      @map("user_id")
-  user            User     @relation(fields: [userId], references: [id])
-  addressId       Int?     @map("address_id")
-  address         Address? @relation(fields: [addressId], references: [id])
-  shippingAddress String   @map("shipping_address")
-  subtotal        Decimal
-  discountAmount  Decimal  @default(0) @map("discount_amount")
-  total           Decimal
-  couponCode      String?  @map("coupon_code")
-  status          String   @default("Processing")
-  statusNote      String?  @map("status_note")
-  paymentMethod   String   @map("payment_method")
-  paymentStatus   String   @default("Pending") @map("payment_status")
-  unitsEarned     Int      @default(0) @map("units_earned")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id              Int       @id @default(autoincrement())
+  orderNumber     String    @unique @map("order_number")
+  userId          Int       @map("user_id")
+  user            User      @relation(fields: [userId], references: [id])
+  addressId       Int?      @map("address_id")
+  address         Address?  @relation(fields: [addressId], references: [id])
+  shippingAddress String    @map("shipping_address") @db.Text
+  subtotal        Decimal   @db.Decimal(12, 2)
+  discountAmount  Decimal   @default(0) @map("discount_amount") @db.Decimal(12, 2)
+  total           Decimal   @db.Decimal(12, 2)
+  couponCode      String?   @map("coupon_code")
+  status          String    @default("Processing") // Processing, Shipped, Out for delivery, Delivered, Cancelled, Returned
+  statusNote      String?   @map("status_note")
+  paymentMethod   String    @map("payment_method") // UPI, Card, Cash on delivery, Razorpay
+  paymentStatus   String    @default("Pending") @map("payment_status") // Pending, Paid, Failed, Refunded
+  unitsEarned     Int       @default(0) @map("units_earned")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   items          OrderItem[]
   payments       Payment[]
@@ -173,27 +173,27 @@ model OrderItem {
   productId Int     @map("product_id")
   product   Product @relation(fields: [productId], references: [id])
   quantity  Int
-  price     Decimal
-  subtotal  Decimal
+  price     Decimal @db.Decimal(12, 2)
+  subtotal  Decimal @db.Decimal(12, 2)
 
   @@map("order_items")
 }
 
 model Payment {
-  id               Int      @id @default(autoincrement())
-  orderId          Int      @map("order_id")
-  order            Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  gateway          String   @default("Razorpay")
-  gatewayOrderId   String?  @unique @map("gateway_order_id")
-  gatewayPaymentId String?  @unique @map("gateway_payment_id")
-  gatewaySignature String?  @map("gateway_signature")
-  amount           Decimal
-  currency         String   @default("INR")
-  status           String   @default("Created")
-  refundAmount     Decimal? @map("refund_amount")
-  refundReason     String?  @map("refund_reason")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
+  id                Int      @id @default(autoincrement())
+  orderId           Int      @map("order_id")
+  order             Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  gateway           String   @default("Razorpay")
+  gatewayOrderId    String?  @unique @map("gateway_order_id")
+  gatewayPaymentId  String?  @unique @map("gateway_payment_id")
+  gatewaySignature  String?  @map("gateway_signature")
+  amount            Decimal  @db.Decimal(12, 2)
+  currency          String   @default("INR")
+  status            String   @default("Created") // Created, Paid, Failed, Refunded
+  refundAmount      Decimal? @map("refund_amount") @db.Decimal(12, 2)
+  refundReason      String?  @map("refund_reason")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
   @@map("payments")
 }
@@ -217,7 +217,7 @@ model Review {
   productId  Int      @map("product_id")
   product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   rating     Int
-  reviewText String   @map("review_text")
+  reviewText String   @map("review_text") @db.Text
   isVerified Boolean  @default(false) @map("is_verified")
   isApproved Boolean  @default(true) @map("is_approved")
   createdAt  DateTime @default(now()) @map("created_at")
@@ -228,9 +228,9 @@ model Review {
 model Coupon {
   id            Int       @id @default(autoincrement())
   code          String    @unique
-  discountType  String    @map("discount_type")
-  discountValue Decimal   @map("discount_value")
-  minOrder      Decimal   @default(0) @map("min_order")
+  discountType  String    @map("discount_type") // percentage, flat
+  discountValue Decimal   @map("discount_value") @db.Decimal(10, 2)
+  minOrder      Decimal   @default(0) @map("min_order") @db.Decimal(12, 2)
   maxUses       Int?      @map("max_uses")
   usedCount     Int       @default(0) @map("used_count")
   expiryDate    DateTime? @map("expiry_date")
@@ -247,7 +247,7 @@ model Offer {
   slug        String    @unique
   title       String
   tagline     String?
-  description String?
+  description String?   @db.Text
   bannerImage String?   @map("banner_image")
   promoCode   String?   @map("promo_code")
   startDate   DateTime? @map("start_date")
@@ -272,10 +272,10 @@ model OfferProduct {
 
 model GalleryItem {
   id          Int      @id @default(autoincrement())
-  type        String
+  type        String   // photo, video, showroom, customer
   title       String
   category    String?
-  description String?
+  description String?  @db.Text
   location    String?
   imageUrl    String?  @map("image_url")
   videoUrl    String?  @map("video_url")
@@ -295,9 +295,9 @@ model SupportTicket {
   name         String
   email        String
   subject      String?
-  message      String
-  adminReply   String?  @map("admin_reply")
-  status       String   @default("Open")
+  message      String   @db.Text
+  adminReply   String?  @map("admin_reply") @db.Text
+  status       String   @default("Open") // Open, In Progress, Resolved, Closed
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
@@ -312,8 +312,8 @@ model WarrantyClaim {
   orderId     Int?     @map("order_id")
   order       Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
   orderNumber String   @map("order_number")
-  issue       String
-  status      String   @default("New")
+  issue       String   @db.Text
+  status      String   @default("New") // New, In Progress, Approved, Rejected, Closed
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -328,8 +328,8 @@ model ServiceBooking {
   name          String
   phone         String
   product       String
-  serviceType   String    @map("service_type")
-  status        String    @default("Requested")
+  serviceType   String    @map("service_type") // Installation, Repair, Maintenance, Test Ride, Battery Check
+  status        String    @default("Requested") // Requested, Scheduled, Completed, Cancelled
   bookingDate   DateTime? @map("booking_date")
   createdAt     DateTime  @default(now()) @map("created_at")
 
@@ -339,7 +339,7 @@ model ServiceBooking {
 model Faq {
   id        Int    @id @default(autoincrement())
   question  String
-  answer    String
+  answer    String @db.Text
   sortOrder Int    @default(0) @map("sort_order")
 
   @@map("faqs")
@@ -347,7 +347,7 @@ model Faq {
 
 model Setting {
   key       String   @id
-  value     String
+  value     String   @db.Text
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("settings")
@@ -358,7 +358,7 @@ model HeroBanner {
   kicker        String?
   title         String
   highlightText String?  @map("highlight_text")
-  description   String
+  description   String   @db.Text
   buttonText    String   @map("button_text")
   buttonRoute   String   @map("button_route")
   imageUrl      String   @map("image_url")
@@ -374,7 +374,7 @@ model PageContent {
   pageKey   String   @id @map("page_key")
   badge     String?
   title     String
-  subtitle  String?
+  subtitle  String?  @db.Text
   imageUrl  String?  @map("image_url")
   ctaText   String?  @map("cta_text")
   ctaRoute  String?  @map("cta_route")
@@ -390,8 +390,8 @@ model MemberUnit {
   userId      Int       @map("user_id")
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   unitNumber  Int       @map("unit_number")
-  totalPaid   Decimal   @default(0) @map("total_paid")
-  maxCap      Decimal   @default(5000) @map("max_cap")
+  totalPaid   Decimal   @default(0) @map("total_paid") @db.Decimal(12, 2)
+  maxCap      Decimal   @default(5000) @map("max_cap") @db.Decimal(12, 2)
   isCompleted Boolean   @default(false) @map("is_completed")
   createdAt   DateTime  @default(now()) @map("created_at")
   completedAt DateTime? @map("completed_at")
@@ -400,18 +400,18 @@ model MemberUnit {
 }
 
 model Commission {
-  id           Int       @id @default(autoincrement())
-  userId       Int       @map("user_id")
-  user         User      @relation("CommissionEarner", fields: [userId], references: [id])
-  sourceUserId Int       @map("source_user_id")
-  sourceUser   User      @relation("CommissionSource", fields: [sourceUserId], references: [id])
-  orderId      Int?      @map("order_id")
+  id           Int      @id @default(autoincrement())
+  userId       Int      @map("user_id")
+  user         User     @relation("CommissionEarner", fields: [userId], references: [id])
+  sourceUserId Int      @map("source_user_id")
+  sourceUser   User     @relation("CommissionSource", fields: [sourceUserId], references: [id])
+  orderId      Int?     @map("order_id")
   level        Int
-  ratePercent  Decimal   @map("rate_percent")
-  amount       Decimal
-  status       String    @default("Pending")
+  ratePercent  Decimal  @map("rate_percent") @db.Decimal(5, 3)
+  amount       Decimal  @db.Decimal(12, 2)
+  status       String   @default("Pending") // Pending, Eligible, Approved, Credited, Reversed
   closingDate  DateTime? @map("closing_date")
-  createdAt    DateTime  @default(now()) @map("created_at")
+  createdAt    DateTime @default(now()) @map("created_at")
 
   @@index([userId])
   @@map("commissions")
@@ -421,12 +421,12 @@ model ProfitSharing {
   id           Int      @id @default(autoincrement())
   userId       Int      @map("user_id")
   user         User     @relation(fields: [userId], references: [id])
-  month        String
-  companyPool  Decimal  @map("company_pool")
+  month        String   // e.g. "2026-11"
+  companyPool  Decimal  @map("company_pool") @db.Decimal(14, 2)
   activeUnits  Int      @map("active_units")
-  sharePerUnit Decimal  @map("share_per_unit")
+  sharePerUnit Decimal  @map("share_per_unit") @db.Decimal(12, 2)
   userUnits    Int      @map("user_units")
-  amount       Decimal
+  amount       Decimal  @db.Decimal(12, 2)
   status       String   @default("Completed")
   createdAt    DateTime @default(now()) @map("created_at")
 
@@ -437,29 +437,29 @@ model SponsorBenefit {
   id           Int      @id @default(autoincrement())
   userId       Int      @map("user_id")
   user         User     @relation(fields: [userId], references: [id])
-  generation   Int
-  ratePercent  Decimal  @map("rate_percent")
-  amount       Decimal
+  generation   Int      // 1, 2, 3
+  ratePercent  Decimal  @map("rate_percent") @db.Decimal(5, 3)
+  amount       Decimal  @db.Decimal(12, 2)
   month        String
-  monthsActive Int      @default(1) @map("months_active")
+  monthsActive Int      @default(1) @map("months_active") // up to 12 months
   createdAt    DateTime @default(now()) @map("created_at")
 
   @@map("sponsor_benefits")
 }
 
 model SalaryRank {
-  id             Int      @id @default(autoincrement())
-  userId         Int      @map("user_id")
-  user           User     @relation(fields: [userId], references: [id])
-  designation    String
-  rankBusiness   String   @map("rank_business")
-  monthlySelf    Decimal  @map("monthly_self")
-  monthlyTeam    Decimal  @map("monthly_team")
-  salaryAmount   Decimal  @map("salary_amount")
-  ratioQualified Boolean  @default(false) @map("ratio_qualified")
-  month          String
-  status         String   @default("Pending")
-  createdAt      DateTime @default(now()) @map("created_at")
+  id              Int      @id @default(autoincrement())
+  userId          Int      @map("user_id")
+  user            User     @relation(fields: [userId], references: [id])
+  designation     String
+  rankBusiness    String   @map("rank_business")
+  monthlySelf     Decimal  @map("monthly_self") @db.Decimal(12, 2)
+  monthlyTeam     Decimal  @map("monthly_team") @db.Decimal(12, 2)
+  salaryAmount    Decimal  @map("salary_amount") @db.Decimal(12, 2)
+  ratioQualified  Boolean  @default(false) @map("ratio_qualified")
+  month           String
+  status          String   @default("Pending")
+  createdAt       DateTime @default(now()) @map("created_at")
 
   @@map("salary_ranks")
 }
@@ -468,10 +468,10 @@ model FundProgress {
   id             Int      @id @default(autoincrement())
   userId         Int      @unique @map("user_id")
   user           User     @relation(fields: [userId], references: [id])
-  totalBusiness  Decimal  @default(0) @map("total_business")
-  travellingFund Decimal  @default(0) @map("travelling_fund")
-  carFund        Decimal  @default(0) @map("car_fund")
-  houseFund      Decimal  @default(0) @map("house_fund")
+  totalBusiness  Decimal  @default(0) @map("total_business") @db.Decimal(14, 2)
+  travellingFund Decimal  @default(0) @map("travelling_fund") @db.Decimal(12, 2)
+  carFund        Decimal  @default(0) @map("car_fund") @db.Decimal(12, 2)
+  houseFund      Decimal  @default(0) @map("house_fund") @db.Decimal(12, 2)
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   @@map("fund_progress")
@@ -483,7 +483,7 @@ model RewardClaim {
   user       User     @relation(fields: [userId], references: [id])
   tierLabel  String   @map("tier_label")
   rewardName String   @map("reward_name")
-  action     String
+  action     String   // Take, Skip
   status     String   @default("Recorded")
   createdAt  DateTime @default(now()) @map("created_at")
 
@@ -495,10 +495,10 @@ model FinancialLedger {
   userId      Int      @map("user_id")
   user        User     @relation(fields: [userId], references: [id])
   entryTitle  String   @map("entry_title")
-  type        String
-  category    String
-  amount      Decimal
-  status      String   @default("Pending")
+  type        String   // Credit, Debit
+  category    String   // ProfitShare, LevelCommission, SponsorBenefit, Payout, ReturnAdjustment, Salary
+  amount      Decimal  @db.Decimal(12, 2)
+  status      String   @default("Pending") // Pending, Eligible, On hold, Approved, Processing, Completed, Reversed
   referenceId String?  @map("reference_id")
   createdAt   DateTime @default(now()) @map("created_at")
 
@@ -510,12 +510,12 @@ model Payout {
   id              Int       @id @default(autoincrement())
   userId          Int       @map("user_id")
   user            User      @relation(fields: [userId], references: [id])
-  requestedAmount Decimal   @map("requested_amount")
-  deductionAmount Decimal   @map("deduction_amount")
-  netAmount       Decimal   @map("net_amount")
+  requestedAmount Decimal   @map("requested_amount") @db.Decimal(12, 2)
+  deductionAmount Decimal   @map("deduction_amount") @db.Decimal(12, 2)
+  netAmount       Decimal   @map("net_amount") @db.Decimal(12, 2)
   bankOrUpi       String    @map("bank_or_upi")
   utrNumber       String?   @map("utr_number")
-  status          String    @default("Pending")
+  status          String    @default("Pending") // Pending, Approved, Processing, Successful, Failed, Rejected
   requestedAt     DateTime  @default(now()) @map("requested_at")
   processedAt     DateTime? @map("processed_at")
 
@@ -531,7 +531,7 @@ model KycDocument {
   panNumber  String    @map("pan_number")
   bankOrUpi  String    @map("bank_or_upi")
   docUrl     String?   @map("doc_url")
-  status     String    @default("Pending")
+  status     String    @default("Pending") // Pending, Approved, Rejected
   reviewNote String?   @map("review_note")
   createdAt  DateTime  @default(now()) @map("created_at")
   reviewedAt DateTime? @map("reviewed_at")
@@ -540,13 +540,13 @@ model KycDocument {
 }
 
 model ClosingLog {
-  id           Int      @id @default(autoincrement())
-  closingType  String   @map("closing_type")
-  periodLabel  String   @map("period_label")
-  totalAmount  Decimal  @map("total_amount")
-  recordsCount Int      @map("records_count")
-  runBy        String   @map("run_by")
-  createdAt    DateTime @default(now()) @map("created_at")
+  id          Int      @id @default(autoincrement())
+  closingType String   @map("closing_type") // Daily, Monthly
+  periodLabel String   @map("period_label")
+  totalAmount Decimal  @map("total_amount") @db.Decimal(14, 2)
+  recordsCount Int     @map("records_count")
+  runBy       String   @map("run_by")
+  createdAt   DateTime @default(now()) @map("created_at")
 
   @@map("closing_logs")
 }
@@ -558,8 +558,8 @@ model AdminUser {
   username     String    @unique
   email        String    @unique
   passwordHash String    @map("password_hash")
-  role         String    @default("SUPER_ADMIN")
-  permissions  String    @default("[]") // JSON array string
+  role         String    @default("SUPER_ADMIN") // SUPER_ADMIN, MANAGER, SUPPORT_STAFF, FINANCE
+  permissions  String[]  @default([])
   isActive     Boolean   @default(true) @map("is_active")
   lastLoginAt  DateTime? @map("last_login_at")
   createdAt    DateTime  @default(now()) @map("created_at")
@@ -574,7 +574,7 @@ model AdminLog {
   adminId   Int       @map("admin_id")
   admin     AdminUser @relation(fields: [adminId], references: [id])
   action    String
-  details   String?
+  details   String?   @db.Text
   ip        String?
   createdAt DateTime  @default(now()) @map("created_at")
 

@@ -40,7 +40,7 @@ export async function listProducts(req, res, next) {
       where.brand = { equals: String(brand) };
     }
     if (tag) {
-      where.tags = { contains: String(tag) };
+      where.tags = { has: String(tag) };
     }
     if (q) {
       where.OR = [

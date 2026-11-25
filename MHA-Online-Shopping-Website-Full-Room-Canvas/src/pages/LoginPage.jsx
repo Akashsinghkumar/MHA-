@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiFetch, setToken } from '../api.js';
+import { authClient } from '../neonAuth.js';
 import { useStore } from '../context/StoreContext.jsx';
 
 export default function LoginPage() {
   const [tab, setTab] = useState('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [referralCode, setReferralCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -21,40 +19,48 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
 
-    if (tab === 'register') {
-      if (!/^\d{10}$/.test(identifier.trim())) {
-        setError('Enter a valid 10-digit mobile number.');
-        return;
-      }
-      if (password !== confirmPassword) {
-        setError('Passwords do not match.');
-        return;
-      }
+    if (!authClient) {
+      setError('Neon Auth URL (VITE_NEON_AUTH_URL) is not configured.');
+      return;
+    }
+
+    if (tab === 'register' && password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
     }
 
     setLoading(true);
     try {
-      const res =
+      const result =
         tab === 'register'
-          ? await apiFetch('/auth/register', {
-              method: 'POST',
-              body: JSON.stringify({
-                name: name.trim(),
-                email: email.trim(),
-                phone: identifier.trim(),
-                password,
-                referralCode: referralCode.trim(),
-              }),
+          ? await authClient.signUp.email({
+              email: email.trim(),
+              password,
+              name: name.trim(),
             })
-          : await apiFetch('/auth/login', {
-              method: 'POST',
-              body: JSON.stringify({ identifier: identifier.trim(), password }),
+          : await authClient.signIn.email({
+              email: email.trim(),
+              password,
             });
 
-      setToken(res.token);
-      setUser(res.user);
-      toast(`Welcome, ${res.user.name.split(' ')[0]}`);
-      navigate('/member');
+      if (result.error) {
+        setError(result.error.message || 'Authentication failed');
+        return;
+      }
+
+      const sessionRes = await authClient.getSession();
+      const authUser = sessionRes?.data?.user || result.data?.user;
+      if (authUser) {
+        setUser({
+          id: authUser.id,
+          name: authUser.name || email.split('@')[0],
+          email: authUser.email,
+          kycStatus: 'Pending',
+          referralCode: 'MHA-MEMBER',
+        });
+        toast(`Welcome, ${(authUser.name || authUser.email).split(' ')[0]}`);
+        navigate('/member');
+      }
     } catch (err) {
       setError(err.message || 'Authentication failed');
     } finally {
@@ -66,12 +72,12 @@ export default function LoginPage() {
     <section className="admin-login-wrap">
       <form className="admin-login-card" onSubmit={handleSubmit}>
         <span className="admin-login-icon">🛍️</span>
-        <small>MHA CUSTOMER ACCOUNT</small>
+        <small>MHA CUSTOMER ACCOUNT · NEON AUTH</small>
         <h1>{tab === 'login' ? 'Sign In' : 'Create Account'}</h1>
         <p>
           {tab === 'login'
-            ? 'Sign in with your mobile number or email.'
-            : 'Register a new MHA customer & member account.'}
+            ? 'Sign in with your email and password.'
+            : 'Register a new MHA account with email and password.'}
         </p>
 
         <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
@@ -84,23 +90,19 @@ export default function LoginPage() {
         </div>
 
         {tab === 'register' && (
-          <>
-            <label>Full Name
-              <input className="f" value={name} onChange={(e) => setName(e.target.value)} required placeholder="Your full name" />
-            </label>
-            <label>Email (optional)
-              <input className="f" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
-            </label>
-          </>
+          <label>Full Name
+            <input className="f" value={name} onChange={(e) => setName(e.target.value)} required placeholder="Your full name" />
+          </label>
         )}
 
-        <label>{tab === 'register' ? 'Mobile Number (10 digits)' : 'Mobile Number or Email'}
+        <label>Email Address
           <input
             className="f"
-            value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             required
-            placeholder={tab === 'register' ? '10-digit mobile number' : 'Mobile or email'}
+            placeholder="you@example.com"
           />
         </label>
 
@@ -111,28 +113,23 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            minLength={6}
-            placeholder="Minimum 6 characters"
+            minLength={8}
+            placeholder="Minimum 8 characters"
           />
         </label>
 
         {tab === 'register' && (
-          <>
-            <label>Confirm Password
-              <input
-                className="f"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                minLength={6}
-                placeholder="Re-enter password"
-              />
-            </label>
-            <label>Referral Code (optional)
-              <input className="f" value={referralCode} onChange={(e) => setReferralCode(e.target.value)} placeholder="e.g. MHA1234" />
-            </label>
-          </>
+          <label>Confirm Password
+            <input
+              className="f"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              minLength={8}
+              placeholder="Re-enter password"
+            />
+          </label>
         )}
 
         <button className="btn" type="submit" disabled={loading}>

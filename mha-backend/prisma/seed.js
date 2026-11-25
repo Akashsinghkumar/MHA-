@@ -93,7 +93,7 @@ async function main() {
         rating,
         accentColor,
         imageUrl: `/image/${photo}`,
-        tags: JSON.stringify(tags),
+        tags,
       },
       create: {
         id,
@@ -107,7 +107,7 @@ async function main() {
         rating,
         accentColor,
         imageUrl: `/image/${photo}`,
-        tags: JSON.stringify(tags),
+        tags,
       },
     });
   }
@@ -311,9 +311,13 @@ async function main() {
       email: adminEmail,
       passwordHash,
       role: 'SUPER_ADMIN',
-      permissions: JSON.stringify(['*']),
+      permissions: ['*'],
     },
   });
+
+  try {
+    await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('products', 'id'), COALESCE((SELECT MAX(id) FROM products), 1));`);
+  } catch {}
 
   console.log('Seed completed successfully.');
 }

@@ -90,7 +90,7 @@ export async function adminRegister(req, res, next) {
         email: email.trim().toLowerCase(),
         passwordHash,
         role: adminRole,
-        permissions: JSON.stringify(perms),
+        permissions: perms,
       },
     });
 
@@ -188,10 +188,10 @@ export async function adminCreateProduct(req, res, next) {
         stock: stock !== undefined ? Number(stock) : 50,
         imageUrl,
         tags: Array.isArray(tags)
-          ? JSON.stringify(tags)
+          ? tags
           : typeof tags === 'string' && tags.startsWith('[')
-            ? tags
-            : JSON.stringify([]),
+            ? JSON.parse(tags)
+            : [],
       },
     });
 
@@ -212,9 +212,8 @@ export async function adminUpdateProduct(req, res, next) {
     if (data.offerPrice) data.offerPrice = Number(data.offerPrice);
     if (data.rating !== undefined) data.rating = Number(data.rating);
     if (data.stock !== undefined) data.stock = Number(data.stock);
-    if (Array.isArray(data.tags)) data.tags = JSON.stringify(data.tags);
-    else if (typeof data.tags === 'string') {
-      try { JSON.parse(data.tags); } catch { data.tags = JSON.stringify([data.tags]); }
+    if (typeof data.tags === 'string') {
+      try { data.tags = JSON.parse(data.tags); } catch { data.tags = [data.tags]; }
     }
 
     const product = await prisma.product.update({ where: { id }, data });

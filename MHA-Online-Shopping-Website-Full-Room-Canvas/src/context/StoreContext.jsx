@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { apiFetch, getToken, setToken, resolveBackendImage } from '../api.js';
+import { authClient } from '../neonAuth.js';
 
 const StoreContext = createContext(null);
 
@@ -103,6 +104,22 @@ export function StoreProvider({ children }) {
       setBackendConnected(false);
     }
 
+    if (authClient) {
+      try {
+        const sessionRes = await authClient.getSession();
+        if (sessionRes?.data?.user) {
+          const u = sessionRes.data.user;
+          setUser({
+            id: u.id,
+            name: u.name || u.email?.split('@')[0] || 'Member',
+            email: u.email,
+            kycStatus: 'Pending',
+            referralCode: 'MHA-MEMBER',
+          });
+        }
+      } catch {}
+    }
+
     if (getToken()) {
       try {
         const me = await apiFetch('/auth/me');
@@ -165,7 +182,10 @@ export function StoreProvider({ children }) {
     });
   }
 
-  function logout() {
+  async function logout() {
+    if (authClient) {
+      try { await authClient.signOut(); } catch {}
+    }
     setToken('');
     setUser(null);
     toast('Logged out');
