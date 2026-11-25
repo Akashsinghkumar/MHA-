@@ -3,8 +3,15 @@ import { BetterAuthReactAdapter } from '@neon/auth/react/adapters';
 
 const neonAuthUrl = import.meta.env.VITE_NEON_AUTH_URL;
 
-export const authClient = neonAuthUrl
-  ? createAuthClient(neonAuthUrl, {
+let client = null;
+if (neonAuthUrl) {
+  try {
+    client = createAuthClient(neonAuthUrl, {
       adapter: BetterAuthReactAdapter(),
-    })
-  : null;
+    });
+  } catch (err) {
+    console.warn('Neon Auth init skipped:', err);
+  }
+}
+
+export const authClient = client;

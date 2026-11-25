@@ -35,7 +35,7 @@ export default function Header() {
           <button type="submit">Search</button>
         </form>
         <button className="hb" type="button" onClick={handleAuthClick}>
-          {user ? `Hi, ${user.name.split(' ')[0]}` : 'Login'}
+          {user ? `Hi, ${(user.name || user.email || 'Member').split(' ')[0]}` : 'Login'}
         </button>
         <button className="hb cartb" type="button" onClick={() => setCartOpen(true)}>
           Cart ({cartCount})
