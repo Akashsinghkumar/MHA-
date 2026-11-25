@@ -10,11 +10,16 @@ export default function ProductsPage() {
   const [editing, setEditing] = useState(null);
   const [selectedTags, setSelectedTags] = useState([]);
   const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
 
   async function load() {
-    const [pRes, cRes] = await Promise.all([apiFetch('/products?limit=100'), apiFetch('/categories')]);
-    setProducts(pRes.products || []);
-    setCategories(cRes.categories || []);
+    try {
+      const [pRes, cRes] = await Promise.all([apiFetch('/products?limit=100'), apiFetch('/categories')]);
+      setProducts(pRes.products || []);
+      setCategories(cRes.categories || []);
+    } catch (e) {
+      setErr(e.message || 'Failed to load products');
+    }
   }
 
   useEffect(() => { load(); }, []);
@@ -31,19 +36,25 @@ export default function ProductsPage() {
 
   async function handleSave(e) {
     e.preventDefault();
-    const fd = new FormData(e.target);
-    fd.append('tags', JSON.stringify(selectedTags));
-    if (editing) {
-      await apiFetch(`/admin/products/${editing.id}`, { method: 'PUT', body: fd });
-      setMsg(`Updated "${fd.get('name')}" (details + image) in database!`);
-      setEditing(null);
-    } else {
-      await apiFetch('/admin/products', { method: 'POST', body: fd });
-      setMsg('New product added to database!');
+    setErr('');
+    setMsg('');
+    try {
+      const fd = new FormData(e.target);
+      fd.append('tags', JSON.stringify(selectedTags));
+      if (editing) {
+        await apiFetch(`/admin/products/${editing.id}`, { method: 'PUT', body: fd });
+        setMsg(`Updated "${fd.get('name')}" (details + image) in database!`);
+        setEditing(null);
+      } else {
+        await apiFetch('/admin/products', { method: 'POST', body: fd });
+        setMsg('New product added to database!');
+      }
+      setSelectedTags([]);
+      e.target.reset();
+      load();
+    } catch (error) {
+      setErr(error.message || 'Could not save product');
     }
-    setSelectedTags([]);
-    e.target.reset();
-    load();
   }
 
   async function handleRemove(id) {
@@ -58,6 +69,7 @@ export default function ProductsPage() {
       <h2>Product Management</h2>
       <p className="subtitle">{products.length} products in database. Edit details, prices, images &amp; Home page sections.</p>
       {msg && <div className="cms-toast-bar">{msg}</div>}
+      {err && <div className="err" style={{ marginBottom: '14px' }}>{err}</div>}
 
       <form onSubmit={handleSave} className="card-box" key={editing?.id || 'new-prod'}>
         <h3>{editing ? `Edit Product #${editing.id}: ${editing.name}` : 'Add New Product'}</h3>

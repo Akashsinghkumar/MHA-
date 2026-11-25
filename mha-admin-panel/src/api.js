@@ -39,6 +39,9 @@ export async function apiFetch(path, options = {}) {
   if (res.status === 401) {
     setAdminToken('');
     setAdminUser(null);
+    if (typeof window !== 'undefined' && !window.location.pathname.endsWith('/login')) {
+      window.location.href = '/login';
+    }
   }
   if (!res.ok) {
     throw new Error(data.error || `Request failed (${res.status})`);

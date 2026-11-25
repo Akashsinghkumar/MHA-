@@ -19,20 +19,25 @@ export default function WebsiteCmsPage() {
   const [editBanner, setEditBanner] = useState(null);
   const [editPage, setEditPage] = useState(null);
   const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
 
   async function loadAll() {
-    const [bRes, pRes, gRes, fRes, oRes] = await Promise.all([
-      apiFetch('/admin/banners'),
-      apiFetch('/admin/site-content'),
-      apiFetch('/admin/gallery'),
-      apiFetch('/support/faqs'),
-      apiFetch('/offers'),
-    ]);
-    setBanners(bRes.banners || []);
-    setPages(pRes.pages || []);
-    setGallery(gRes.items || []);
-    setFaqs(fRes.faqs || []);
-    setOffers(oRes.offers || []);
+    try {
+      const [bRes, pRes, gRes, fRes, oRes] = await Promise.all([
+        apiFetch('/admin/banners'),
+        apiFetch('/admin/site-content'),
+        apiFetch('/admin/gallery'),
+        apiFetch('/support/faqs'),
+        apiFetch('/offers'),
+      ]);
+      setBanners(bRes.banners || []);
+      setPages(pRes.pages || []);
+      setGallery(gRes.items || []);
+      setFaqs(fRes.faqs || []);
+      setOffers(oRes.offers || []);
+    } catch (e) {
+      setErr(e.message || 'Failed to load CMS data');
+    }
   }
 
   useEffect(() => {
@@ -41,17 +46,23 @@ export default function WebsiteCmsPage() {
 
   async function saveBanner(e) {
     e.preventDefault();
-    const fd = new FormData(e.target);
-    if (editBanner?.id) {
-      await apiFetch(`/admin/banners/${editBanner.id}`, { method: 'PUT', body: fd });
-      setMsg('Hero banner updated — live on Public Website!');
-    } else {
-      await apiFetch('/admin/banners', { method: 'POST', body: fd });
-      setMsg('New hero banner added!');
+    setErr('');
+    setMsg('');
+    try {
+      const fd = new FormData(e.target);
+      if (editBanner?.id) {
+        await apiFetch(`/admin/banners/${editBanner.id}`, { method: 'PUT', body: fd });
+        setMsg('Hero banner updated — live on Public Website!');
+      } else {
+        await apiFetch('/admin/banners', { method: 'POST', body: fd });
+        setMsg('New hero banner added!');
+      }
+      setEditBanner(null);
+      e.target.reset();
+      loadAll();
+    } catch (error) {
+      setErr(error.message || 'Could not save banner');
     }
-    setEditBanner(null);
-    e.target.reset();
-    loadAll();
   }
 
   async function deleteBanner(id) {
@@ -151,6 +162,7 @@ export default function WebsiteCmsPage() {
       </div>
 
       {msg && <div className="cms-toast-bar">{msg}</div>}
+      {err && <div className="err" style={{ marginBottom: '14px' }}>{err}</div>}
 
       <div className="cms-size-guide">
         <div><span>Home Hero Split Banner</span><strong>1200 × 740 px (16:10)</strong></div>
