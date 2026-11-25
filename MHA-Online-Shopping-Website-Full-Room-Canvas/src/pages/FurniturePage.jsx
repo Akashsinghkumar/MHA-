@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { inr, mediaUrl, useStore } from '../context/StoreContext.jsx';
+import { matchesProductSearch } from '../utils/searchRouting.js';
 import ProductCard from '../components/ProductCard.jsx';
 
 const ROOMS = ['Living Room', 'Bedroom', 'Dining', 'Home Office', 'Other Furniture'];
 
 export default function FurniturePage() {
-  const { products, siteContent, addToCart, toast } = useStore();
+  const { products, siteContent, addToCart, toast, searchQuery, setSearchQuery } = useStore();
   const page = siteContent.furniture || {};
   const [plannerRoom, setPlannerRoom] = useState('Living Room');
   const [roomPlans, setRoomPlans] = useState({});
@@ -15,9 +16,11 @@ export default function FurniturePage() {
   const roomMatches = furnitureProducts.filter((p) => p.subcategory === plannerRoom);
   const plan = roomPlans[plannerRoom] || [];
 
-  const gridProducts = roomFilter
-    ? furnitureProducts.filter((p) => p.subcategory === roomFilter)
-    : furnitureProducts;
+  const gridProducts = furnitureProducts.filter(
+    (p) =>
+      (!roomFilter || p.subcategory === roomFilter) &&
+      (!searchQuery || matchesProductSearch(p, searchQuery))
+  );
 
   function addItemToRoom(id, x = 50, y = 50) {
     setRoomPlans((prev) => ({
@@ -195,9 +198,16 @@ export default function FurniturePage() {
         </div>
       </section>
 
-      <div className="bar"><h2>Furniture ({gridProducts.length})</h2></div>
+      <div className="bar">
+        <h2>Furniture{roomFilter ? ` · ${roomFilter}` : ''}{searchQuery ? ` · “${searchQuery}”` : ''} ({gridProducts.length})</h2>
+        {(roomFilter || searchQuery) && (
+          <button className="mb o" type="button" onClick={() => { setRoomFilter(''); setSearchQuery(''); }}>
+            Show all
+          </button>
+        )}
+      </div>
       <div className="grid" id="gr">
-        {gridProducts.map((p) => <ProductCard key={p.id} product={p} />)}
+        {gridProducts.length ? gridProducts.map((p) => <ProductCard key={p.id} product={p} />) : <p>No furniture products found for “{searchQuery}”.</p>}
       </div>
     </main>
   );

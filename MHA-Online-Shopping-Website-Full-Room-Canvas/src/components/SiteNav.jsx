@@ -20,7 +20,7 @@ const PORTAL_PATHS = ['/member', '/units', '/referral', '/incomes', '/ledger', '
 export default function SiteNav() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { setCartOpen, cartTotal, toast } = useStore();
+  const { setCartOpen, cartTotal, toast, setSearchQuery } = useStore();
 
   return (
     <nav className="site-nav" aria-label="Main navigation">
@@ -32,7 +32,7 @@ export default function SiteNav() {
             key={to}
             type="button"
             className={isActive ? 'on' : ''}
-            onClick={() => navigate(to)}
+            onClick={() => { setSearchQuery(''); navigate(to); }}
           >
             {label}
           </button>

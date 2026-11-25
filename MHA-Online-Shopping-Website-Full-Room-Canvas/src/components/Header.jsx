@@ -1,14 +1,19 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../context/StoreContext.jsx';
+import { resolveSearchRoute } from '../utils/searchRouting.js';
 
 export default function Header() {
-  const { user, logout, cartCount, setCartOpen, searchQuery, setSearchQuery } = useStore();
+  const { user, logout, cartCount, setCartOpen, searchQuery, setSearchQuery, products } = useStore();
   const navigate = useNavigate();
 
   function handleSearch(e) {
     e.preventDefault();
-    navigate('/shop');
+    const { route, isCategoryBrowse } = resolveSearchRoute(searchQuery, products);
+    if (isCategoryBrowse) {
+      setSearchQuery('');
+    }
+    navigate(route);
   }
 
   function handleAuthClick() {

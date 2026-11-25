@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { apiFetch } from '../api.js';
 import { inr, mediaUrl, useStore } from '../context/StoreContext.jsx';
+import { matchesProductSearch } from '../utils/searchRouting.js';
 import ProductCard from '../components/ProductCard.jsx';
 
 export default function CategoryPage({ category }) {
-  const { products, siteContent, toast } = useStore();
+  const { products, siteContent, toast, searchQuery, setSearchQuery } = useStore();
   const elecPage = siteContent.electronics || {};
   const evPage = siteContent.ev || {};
   const accPage = siteContent.accessories || {};
@@ -13,7 +14,12 @@ export default function CategoryPage({ category }) {
   const [emiDown, setEmiDown] = useState(10000);
   const [emiMonths, setEmiMonths] = useState(24);
 
-  const items = products.filter((p) => p.category === category && (!subFilter || p.subcategory === subFilter));
+  const items = products.filter(
+    (p) =>
+      p.category === category &&
+      (!subFilter || p.subcategory === subFilter) &&
+      (!searchQuery || matchesProductSearch(p, searchQuery))
+  );
 
   const rate = 0.095 / 12;
   const principal = Math.max(0, Number(emiPrice) - Number(emiDown));
@@ -122,11 +128,15 @@ export default function CategoryPage({ category }) {
       </div>
 
       <div className="bar">
-        <h2>{category}{subFilter ? ` · ${subFilter}` : ''} ({items.length})</h2>
-        {subFilter && <button className="mb o" type="button" onClick={() => setSubFilter('')}>Show all</button>}
+        <h2>{category}{subFilter ? ` · ${subFilter}` : ''}{searchQuery ? ` · “${searchQuery}”` : ''} ({items.length})</h2>
+        {(subFilter || searchQuery) && (
+          <button className="mb o" type="button" onClick={() => { setSubFilter(''); setSearchQuery(''); }}>
+            Show all
+          </button>
+        )}
       </div>
       <div className="grid" id="gr">
-        {items.map((p) => <ProductCard key={p.id} product={p} />)}
+        {items.length ? items.map((p) => <ProductCard key={p.id} product={p} />) : <p>No products found in {category} for “{searchQuery}”.</p>}
       </div>
     </main>
   );

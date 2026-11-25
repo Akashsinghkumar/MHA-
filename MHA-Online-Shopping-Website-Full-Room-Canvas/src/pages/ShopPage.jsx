@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { inr, mediaUrl, useStore } from '../context/StoreContext.jsx';
+import { matchesProductSearch } from '../utils/searchRouting.js';
 import ProductCard from '../components/ProductCard.jsx';
 
 export default function ShopPage() {
-  const { products, siteContent, searchQuery, compare, setCompare } = useStore();
+  const { products, siteContent, searchQuery, setSearchQuery, compare, setCompare } = useStore();
   const page = siteContent.shop || {};
   const [priceRange, setPriceRange] = useState('');
   const [brand, setBrand] = useState('');
@@ -16,7 +17,7 @@ export default function ShopPage() {
     .filter((p) => {
       if (type && p.category !== type) return false;
       if (brand && p.brand !== brand) return false;
-      if (searchQuery && !(p.name + p.category + p.subcategory).toLowerCase().includes(searchQuery.toLowerCase())) return false;
+      if (searchQuery && !matchesProductSearch(p, searchQuery)) return false;
       if (minP !== null && p.offerPrice < minP) return false;
       if (maxP !== null && p.offerPrice >= maxP) return false;
       return true;
@@ -43,6 +44,11 @@ export default function ShopPage() {
 
       <div className="bar">
         <h2 id="ttl">{searchQuery ? `Results for “${searchQuery}”` : 'All products'} ({filtered.length})</h2>
+        {searchQuery && (
+          <button className="mb o" type="button" onClick={() => setSearchQuery('')}>
+            Show all
+          </button>
+        )}
       </div>
 
       <div className="shop-tools" aria-label="Product filters">
