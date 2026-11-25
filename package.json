@@ -1,0 +1,9 @@
+{
+  "name": "mha-online-shopping-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "postinstall": "npm --prefix MHA-Online-Shopping-Website-Full-Room-Canvas install --no-audit --no-fund",
+    "build": "npm --prefix MHA-Online-Shopping-Website-Full-Room-Canvas run build && node -e \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true});fs.cpSync('MHA-Online-Shopping-Website-Full-Room-Canvas/dist','dist',{recursive:true});\""
+  }
+}
