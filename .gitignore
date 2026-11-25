@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+*.db
+*.db-journal
+*.log
+mha-backend/uploads/*
+!mha-backend/uploads/.gitkeep

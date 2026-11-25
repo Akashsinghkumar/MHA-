@@ -1,0 +1,31 @@
+import prisma from '../config/db.js';
+
+export const UserModel = prisma.user;
+export const AddressModel = prisma.address;
+export const CategoryModel = prisma.category;
+export const ProductModel = prisma.product;
+export const ProductImageModel = prisma.productImage;
+export const CartItemModel = prisma.cartItem;
+export const OrderModel = prisma.order;
+export const OrderItemModel = prisma.orderItem;
+export const PaymentModel = prisma.payment;
+export const WishlistModel = prisma.wishlist;
+export const ReviewModel = prisma.review;
+export const CouponModel = prisma.coupon;
+export const OfferModel = prisma.offer;
+export const GalleryModel = prisma.galleryItem;
+export const SupportTicketModel = prisma.supportTicket;
+export const WarrantyClaimModel = prisma.warrantyClaim;
+export const ServiceBookingModel = prisma.serviceBooking;
+export const FaqModel = prisma.faq;
+export const SettingModel = prisma.setting;
+export const MemberUnitModel = prisma.memberUnit;
+export const CommissionModel = prisma.commission;
+export const ProfitSharingModel = prisma.profitSharing;
+export const FinancialLedgerModel = prisma.financialLedger;
+export const PayoutModel = prisma.payout;
+export const KycDocumentModel = prisma.kycDocument;
+export const AdminUserModel = prisma.adminUser;
+export const AdminLogModel = prisma.adminLog;
+
+export default prisma;
