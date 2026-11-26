@@ -59,7 +59,7 @@ export async function listGallery(_req, res, next) {
 export async function submitCustomerPhoto(req, res, next) {
   try {
     const { title, description, category } = req.body;
-    const imageUrl = req.file ? getUploadedFileUrl(req.file) : req.body.imageUrl;
+    const imageUrl = req.file ? await getUploadedFileUrl(req.file) : req.body.imageUrl;
 
     const item = await prisma.galleryItem.create({
       data: {

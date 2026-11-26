@@ -2,8 +2,22 @@ import React, { useState } from 'react';
 import { apiFetch, getToken } from '../api.js';
 import { inr, useStore } from '../context/StoreContext.jsx';
 
+function loadRazorpayScript() {
+  return new Promise((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
 export default function CheckoutModal() {
-  const { checkoutOpen, setCheckoutOpen, cartTotal, cart, clearCart, toast, backendConnected } = useStore();
+  const { checkoutOpen, setCheckoutOpen, cartTotal, cart, clearCart, toast, backendConnected, user } = useStore();
   const [address, setAddress] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('UPI');
   const [placedOrder, setPlacedOrder] = useState(null);
@@ -36,15 +50,57 @@ export default function CheckoutModal() {
         });
         const ord = res.order;
         if (res.gateway) {
-          await apiFetch('/orders/verify-payment', {
-            method: 'POST',
-            body: JSON.stringify({
-              orderId: ord.id,
-              gatewayOrderId: res.gateway.gatewayOrderId,
-              gatewayPaymentId: 'pay_live_' + Date.now(),
-              gatewaySignature: 'verified',
-            }),
-          });
+          if (res.gateway.mode === 'live') {
+            const loaded = await loadRazorpayScript();
+            if (!loaded) {
+              throw new Error('Could not load Razorpay Checkout. Please try again.');
+            }
+            await new Promise((resolve, reject) => {
+              const rzp = new window.Razorpay({
+                key: res.gateway.keyId,
+                amount: res.gateway.amount,
+                currency: res.gateway.currency || 'INR',
+                name: 'MHA Online Shopping',
+                description: `Order ${ord.orderNumber}`,
+                order_id: res.gateway.gatewayOrderId,
+                prefill: {
+                  name: user?.name || '',
+                  email: user?.email || '',
+                  contact: user?.phone || '',
+                },
+                handler: async (rzpRes) => {
+                  try {
+                    await apiFetch('/orders/verify-payment', {
+                      method: 'POST',
+                      body: JSON.stringify({
+                        orderId: ord.id,
+                        gatewayOrderId: rzpRes.razorpay_order_id || res.gateway.gatewayOrderId,
+                        gatewayPaymentId: rzpRes.razorpay_payment_id,
+                        gatewaySignature: rzpRes.razorpay_signature,
+                      }),
+                    });
+                    resolve();
+                  } catch (verifyErr) {
+                    reject(verifyErr);
+                  }
+                },
+                modal: {
+                  ondismiss: () => reject(new Error('Payment cancelled by user')),
+                },
+              });
+              rzp.open();
+            });
+          } else {
+            await apiFetch('/orders/verify-payment', {
+              method: 'POST',
+              body: JSON.stringify({
+                orderId: ord.id,
+                gatewayOrderId: res.gateway.gatewayOrderId,
+                gatewayPaymentId: 'pay_mock_' + Date.now(),
+                gatewaySignature: 'verified',
+              }),
+            });
+          }
         }
         setPlacedOrder({
           orderNumber: ord.orderNumber,

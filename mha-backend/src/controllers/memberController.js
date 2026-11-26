@@ -207,7 +207,7 @@ export async function getMyPayouts(req, res, next) {
 export async function submitKyc(req, res, next) {
   try {
     const { fullName, panNumber, bankOrUpi } = req.body;
-    const docUrl = req.file ? getUploadedFileUrl(req.file) : null;
+    const docUrl = req.file ? await getUploadedFileUrl(req.file) : null;
 
     const kyc = await prisma.$transaction(async (tx) => {
       const created = await tx.kycDocument.create({

@@ -173,7 +173,7 @@ export async function adminCreateProduct(req, res, next) {
       stock,
       tags,
     } = req.body;
-    const imageUrl = req.file ? getUploadedFileUrl(req.file) : req.body.imageUrl || '/image/AllEle.webp';
+    const imageUrl = req.file ? await getUploadedFileUrl(req.file) : req.body.imageUrl || '/image/AllEle.webp';
 
     const product = await prisma.product.create({
       data: {
@@ -206,7 +206,7 @@ export async function adminUpdateProduct(req, res, next) {
   try {
     const id = Number(req.params.id);
     const data = { ...req.body };
-    if (req.file) data.imageUrl = getUploadedFileUrl(req.file);
+    if (req.file) data.imageUrl = await getUploadedFileUrl(req.file);
     if (data.categoryId) data.categoryId = Number(data.categoryId);
     if (data.actualPrice) data.actualPrice = Number(data.actualPrice);
     if (data.offerPrice) data.offerPrice = Number(data.offerPrice);
@@ -238,7 +238,7 @@ export async function adminDeleteProduct(req, res, next) {
 export async function adminUpsertCategory(req, res, next) {
   try {
     const { id, name, slug, sortOrder } = req.body;
-    const imageUrl = req.file ? getUploadedFileUrl(req.file) : req.body.imageUrl;
+    const imageUrl = req.file ? await getUploadedFileUrl(req.file) : req.body.imageUrl;
     const category = id
       ? await prisma.category.update({
           where: { id: Number(id) },
@@ -417,7 +417,7 @@ export async function adminReviewKyc(req, res, next) {
 export async function adminUpsertOffer(req, res, next) {
   try {
     const { slug, title, tagline, description, promoCode, endDate, isActive, productIds } = req.body;
-    const bannerImage = req.file ? getUploadedFileUrl(req.file) : req.body.bannerImage;
+    const bannerImage = req.file ? await getUploadedFileUrl(req.file) : req.body.bannerImage;
 
     const offer = await prisma.offer.upsert({
       where: { slug },
@@ -608,7 +608,7 @@ export async function adminListBanners(_req, res, next) {
 export async function adminCreateBanner(req, res, next) {
   try {
     const { kicker, title, highlightText, description, buttonText, buttonRoute, sortOrder, isActive } = req.body;
-    const imageUrl = req.file ? getUploadedFileUrl(req.file) : req.body.imageUrl || '/image/Furniture.webp';
+    const imageUrl = req.file ? await getUploadedFileUrl(req.file) : req.body.imageUrl || '/image/Furniture.webp';
     const banner = await prisma.heroBanner.create({
       data: {
         kicker: kicker || 'MHA ONLINE SHOPPING',
@@ -642,7 +642,7 @@ export async function adminUpdateBanner(req, res, next) {
     if (buttonRoute !== undefined) data.buttonRoute = buttonRoute;
     if (sortOrder !== undefined) data.sortOrder = Number(sortOrder);
     if (isActive !== undefined) data.isActive = String(isActive) !== 'false' && isActive !== false;
-    if (req.file) data.imageUrl = getUploadedFileUrl(req.file);
+    if (req.file) data.imageUrl = await getUploadedFileUrl(req.file);
     else if (req.body.imageUrl) data.imageUrl = req.body.imageUrl;
 
     const banner = await prisma.heroBanner.update({ where: { id }, data });
@@ -677,7 +677,7 @@ export async function adminUpdateSiteContent(req, res, next) {
   try {
     const pageKey = req.params.pageKey;
     const { badge, title, subtitle, ctaText, ctaRoute } = req.body;
-    const imageUrl = req.file ? getUploadedFileUrl(req.file) : req.body.imageUrl;
+    const imageUrl = req.file ? await getUploadedFileUrl(req.file) : req.body.imageUrl;
 
     const page = await prisma.pageContent.upsert({
       where: { pageKey },
@@ -718,7 +718,7 @@ export async function adminListGallery(_req, res, next) {
 export async function adminCreateGalleryItem(req, res, next) {
   try {
     const { type, title, category, description, location, videoUrl } = req.body;
-    const imageUrl = req.file ? getUploadedFileUrl(req.file) : req.body.imageUrl;
+    const imageUrl = req.file ? await getUploadedFileUrl(req.file) : req.body.imageUrl;
     const item = await prisma.galleryItem.create({
       data: {
         type: type || 'photo',
