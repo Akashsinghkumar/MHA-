@@ -5,13 +5,13 @@ RUN apt-get update -y && apt-get install -y openssl ca-certificates && rm -rf /v
 WORKDIR /app
 
 COPY package*.json ./
+COPY prisma ./prisma
 RUN npm install --omit=dev
 
-COPY prisma ./prisma
 RUN npx prisma generate
 
 COPY src ./src
-COPY uploads ./uploads
+RUN mkdir -p uploads
 
 ENV NODE_ENV=production
 EXPOSE 5000
