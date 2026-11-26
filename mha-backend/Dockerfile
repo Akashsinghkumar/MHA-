@@ -6,14 +6,12 @@ WORKDIR /app
 
 COPY package*.json ./
 COPY prisma ./prisma
-RUN npm install --omit=dev
-
-RUN npx prisma generate
+RUN npm install
 
 COPY src ./src
-RUN mkdir -p uploads
+COPY uploads ./uploads
 
 ENV NODE_ENV=production
 EXPOSE 5000
 
-CMD ["npm", "start"]
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node prisma/seed.js && npm start"]
