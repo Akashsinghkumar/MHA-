@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import prisma from '../config/db.js';
 import env from '../config/env.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { createAndSendOtp, hasRecentVerifiedOtp, verifyOtpCode } from '../services/otpService.js';
 
 function signUserToken(userId) {
   return jwt.sign({ userId }, env.jwtSecret, { expiresIn: env.jwtExpiresIn });
@@ -14,13 +15,107 @@ function makeReferralCode(phone) {
   return `MHA${suffix}${rand}`;
 }
 
+export async function sendOtp(req, res, next) {
+  try {
+    const { channel, target, purpose } = req.body;
+    const cleanTarget = channel === 'email' ? target.trim().toLowerCase() : target.trim();
+
+    if (purpose === 'register') {
+      const existing = await prisma.user.findFirst({
+        where: channel === 'email' ? { email: cleanTarget } : { phone: cleanTarget },
+        select: { id: true },
+      });
+      if (existing) {
+        throw new AppError(`An account with this ${channel} already exists`, 409);
+      }
+    }
+
+    if (purpose === 'login') {
+      const existing = await prisma.user.findFirst({
+        where: channel === 'email' ? { email: cleanTarget } : { phone: cleanTarget },
+        select: { id: true, isBlocked: true },
+      });
+      if (!existing) {
+        throw new AppError(`No account found with this ${channel}`, 404);
+      }
+      if (existing.isBlocked) {
+        throw new AppError('Account suspended. Contact support.', 403);
+      }
+    }
+
+    const result = await createAndSendOtp({ channel, target: cleanTarget, purpose });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function verifyOtp(req, res, next) {
+  try {
+    const { channel, target, code, purpose } = req.body;
+    const cleanTarget = channel === 'email' ? target.trim().toLowerCase() : target.trim();
+
+    await verifyOtpCode({ channel, target: cleanTarget, code, purpose });
+
+    if (purpose === 'login') {
+      const user = await prisma.user.findFirst({
+        where: channel === 'email' ? { email: cleanTarget } : { phone: cleanTarget },
+      });
+      if (!user) {
+        throw new AppError(`No account found with this ${channel}`, 404);
+      }
+      if (user.isBlocked) {
+        throw new AppError('Account suspended. Contact support.', 403);
+      }
+      if (channel === 'email' && !user.emailVerified) {
+        await prisma.user.update({ where: { id: user.id }, data: { emailVerified: true } });
+      }
+      if (channel === 'phone' && !user.phoneVerified) {
+        await prisma.user.update({ where: { id: user.id }, data: { phoneVerified: true } });
+      }
+      const token = signUserToken(user.id);
+      return res.json({
+        verified: true,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          referralCode: user.referralCode,
+          kycStatus: user.kycStatus,
+          emailVerified: channel === 'email' ? true : user.emailVerified,
+          phoneVerified: channel === 'phone' ? true : user.phoneVerified,
+        },
+        token,
+      });
+    }
+
+    res.json({ verified: true, channel, target: cleanTarget });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function register(req, res, next) {
   try {
     const { name, phone, email, password, referralCode } = req.body;
+    const cleanPhone = phone.trim();
+    const cleanEmail = email ? email.trim().toLowerCase() : '';
+
+    const phoneOk = await hasRecentVerifiedOtp({ channel: 'phone', target: cleanPhone, purpose: 'register' });
+    if (!phoneOk) {
+      throw new AppError('Please verify your mobile number with OTP first', 400);
+    }
+    if (cleanEmail) {
+      const emailOk = await hasRecentVerifiedOtp({ channel: 'email', target: cleanEmail, purpose: 'register' });
+      if (!emailOk) {
+        throw new AppError('Please verify your email address with OTP first', 400);
+      }
+    }
 
     const existing = await prisma.user.findFirst({
       where: {
-        OR: [{ phone }, ...(email ? [{ email }] : [])],
+        OR: [{ phone: cleanPhone }, ...(cleanEmail ? [{ email: cleanEmail }] : [])],
       },
     });
     if (existing) {
@@ -42,10 +137,12 @@ export async function register(req, res, next) {
     const user = await prisma.user.create({
       data: {
         name: name.trim(),
-        phone: phone.trim(),
-        email: email ? email.trim().toLowerCase() : null,
+        phone: cleanPhone,
+        email: cleanEmail || null,
         passwordHash,
-        referralCode: makeReferralCode(phone),
+        emailVerified: Boolean(cleanEmail),
+        phoneVerified: true,
+        referralCode: makeReferralCode(cleanPhone),
         referredById,
       },
       select: {
@@ -55,6 +152,8 @@ export async function register(req, res, next) {
         phone: true,
         referralCode: true,
         kycStatus: true,
+        emailVerified: true,
+        phoneVerified: true,
         createdAt: true,
       },
     });

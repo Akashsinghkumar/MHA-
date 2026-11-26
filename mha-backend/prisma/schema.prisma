@@ -19,8 +19,10 @@ model User {
   referredById Int?      @map("referred_by_id")
   referredBy   User?     @relation("ReferralTree", fields: [referredById], references: [id])
   referrals    User[]    @relation("ReferralTree")
-  kycStatus    String    @default("Pending") @map("kyc_status") // Pending, Submitted, Verified, Rejected
-  isBlocked    Boolean   @default(false) @map("is_blocked")
+  kycStatus     String    @default("Pending") @map("kyc_status") // Pending, Submitted, Verified, Rejected
+  emailVerified Boolean   @default(false) @map("email_verified")
+  phoneVerified Boolean   @default(false) @map("phone_verified")
+  isBlocked     Boolean   @default(false) @map("is_blocked")
   carryForward Decimal   @default(0) @map("carry_forward") @db.Decimal(12, 2)
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
@@ -47,6 +49,21 @@ model User {
   kycDocuments     KycDocument[]
 
   @@map("users")
+}
+
+model OtpVerification {
+  id        Int      @id @default(autoincrement())
+  channel   String
+  target    String
+  purpose   String   @default("register")
+  codeHash  String   @map("code_hash")
+  verified  Boolean  @default(false)
+  attempts  Int      @default(0)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([channel, target, purpose])
+  @@map("otp_verifications")
 }
 
 model Address {
