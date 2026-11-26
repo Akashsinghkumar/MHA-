@@ -74,6 +74,49 @@ export const FALLBACK_OFFERS = [
   { id: 4, slug: 'special', title: 'Special Offers', tagline: 'GOOD FINDS', description: 'Explore current highlights across furniture, electronics, accessories and EV products.', bannerImage: '/image/Electronics-Appliance.webp', products: [7, 12, 21, 31].map((productId) => ({ productId })) },
 ];
 
+export const FALLBACK_BANNERS = [
+  {
+    id: 1,
+    kicker: 'WELCOME TO MHA ONLINE SHOPPING',
+    title: 'Beautiful &',
+    highlightText: 'Comfortable',
+    description: 'Discover stylish sofas, beds, dining tables and furniture for every corner of your home.',
+    buttonText: 'Shop Furniture →',
+    buttonRoute: '/furniture',
+    imageUrl: '/image/Furniture.webp',
+  },
+  {
+    id: 2,
+    kicker: 'SMARTER EVERYDAY LIVING',
+    title: 'Modern &',
+    highlightText: 'Smart Tech',
+    description: 'Upgrade your home with 4K LED TVs, wireless audio, and smart home appliances.',
+    buttonText: 'Shop Electronics →',
+    buttonRoute: '/electronics',
+    imageUrl: '/image/Electronics-Appliance.webp',
+  },
+  {
+    id: 3,
+    kicker: 'ZERO-EMISSION COMMUTE',
+    title: 'Electric &',
+    highlightText: 'Effortless',
+    description: 'Ride further with City Rider, Pro Max, and Lite EV Scooters built for daily travel.',
+    buttonText: 'Explore EV Scooters →',
+    buttonRoute: '/ev-scooters',
+    imageUrl: '/image/EV-Scooter.webp',
+  },
+  {
+    id: 4,
+    kicker: 'THE FINISHING TOUCH',
+    title: 'Essential &',
+    highlightText: 'Reliable',
+    description: 'Find ISI-certified helmets, fast chargers, cushions, and everyday add-ons.',
+    buttonText: 'Shop Accessories →',
+    buttonRoute: '/accessories',
+    imageUrl: '/image/Accessories.webp',
+  },
+];
+
 export const FALLBACK_FAQS = [
   { id: 1, question: 'How can I track my order?', answer: 'Enter your order ID in Order Tracking to see its latest status.' },
   { id: 2, question: 'Which payment methods are available?', answer: 'UPI, Card, Net Banking via Razorpay, and Cash on Delivery are available at checkout.' },

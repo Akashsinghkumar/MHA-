@@ -1,5 +1,9 @@
 export const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000/api';
 export const BACKEND_ORIGIN = API_BASE.replace(/\/api\/?$/, '');
+export const IS_REMOTE_WITHOUT_API =
+  !import.meta.env.VITE_API_URL &&
+  typeof window !== 'undefined' &&
+  !['localhost', '127.0.0.1'].includes(window.location.hostname);
 
 export function getToken() {
   try {

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { apiFetch, getToken, setToken, resolveBackendImage } from '../api.js';
+import { apiFetch, getToken, setToken, resolveBackendImage, IS_REMOTE_WITHOUT_API } from '../api.js';
 import { authClient } from '../neonAuth.js';
-import { FALLBACK_PRODUCTS, FALLBACK_OFFERS, FALLBACK_FAQS } from '../data/fallbackCatalog.js';
+import { FALLBACK_BANNERS, FALLBACK_PRODUCTS, FALLBACK_OFFERS, FALLBACK_FAQS } from '../data/fallbackCatalog.js';
 
 const StoreContext = createContext(null);
 
@@ -16,7 +16,7 @@ export const mediaUrl = (url, fallbackImg = 'AllEle.webp') => {
 
 export function StoreProvider({ children }) {
   const [products, setProducts] = useState(FALLBACK_PRODUCTS);
-  const [banners, setBanners] = useState([]);
+  const [banners, setBanners] = useState(FALLBACK_BANNERS);
   const [siteContent, setSiteContent] = useState({});
   const [offers, setOffers] = useState(FALLBACK_OFFERS);
   const [gallery, setGallery] = useState([]);
@@ -66,43 +66,45 @@ export function StoreProvider({ children }) {
   }, [wishlist]);
 
   const loadInitialData = useCallback(async () => {
-    try {
-      const [prodRes, banRes, contentRes, offerRes, galRes, faqRes] = await Promise.all([
-        apiFetch('/products?limit=100'),
-        apiFetch('/banners'),
-        apiFetch('/site-content'),
-        apiFetch('/offers'),
-        apiFetch('/gallery'),
-        apiFetch('/support/faqs'),
-      ]);
-      setBackendConnected(true);
-      setBanners(banRes.banners || []);
-      setSiteContent(contentRes.content || {});
-      setProducts(
-        (prodRes.products || []).map((p) => ({
-          id: p.id,
-          name: p.name,
-          description: p.description || '',
-          category: p.category?.name || 'Other',
-          subcategory: p.subcategory || '',
-          brand: p.brand || 'MHA',
-          offerPrice: Number(p.offerPrice),
-          actualPrice: Number(p.actualPrice),
-          rating: Number(p.rating || 4.5),
-          emoji: p.emoji || '📦',
-          accentColor: p.accentColor || '#eff5fa',
-          imageUrl: p.imageUrl?.startsWith('/uploads/')
-            ? resolveBackendImage(p.imageUrl)
-            : `${import.meta.env.BASE_URL}${String(p.imageUrl || 'image/AllEle.webp').replace(/^\/+/, '')}`,
-          tags: Array.isArray(p.tags) ? p.tags : [],
-        }))
-      );
-      setOffers(offerRes.offers || []);
-      setGallery(galRes.items || []);
-      setFaqs(faqRes.faqs || []);
-      if (faqRes.config) setSupportConfig((prev) => ({ ...prev, ...faqRes.config }));
-    } catch {
-      setBackendConnected(false);
+    if (!IS_REMOTE_WITHOUT_API) {
+      try {
+        const [prodRes, banRes, contentRes, offerRes, galRes, faqRes] = await Promise.all([
+          apiFetch('/products?limit=100'),
+          apiFetch('/banners'),
+          apiFetch('/site-content'),
+          apiFetch('/offers'),
+          apiFetch('/gallery'),
+          apiFetch('/support/faqs'),
+        ]);
+        setBackendConnected(true);
+        if (banRes.banners?.length) setBanners(banRes.banners);
+        setSiteContent(contentRes.content || {});
+        setProducts(
+          (prodRes.products || []).map((p) => ({
+            id: p.id,
+            name: p.name,
+            description: p.description || '',
+            category: p.category?.name || 'Other',
+            subcategory: p.subcategory || '',
+            brand: p.brand || 'MHA',
+            offerPrice: Number(p.offerPrice),
+            actualPrice: Number(p.actualPrice),
+            rating: Number(p.rating || 4.5),
+            emoji: p.emoji || '📦',
+            accentColor: p.accentColor || '#eff5fa',
+            imageUrl: p.imageUrl?.startsWith('/uploads/')
+              ? resolveBackendImage(p.imageUrl)
+              : `${import.meta.env.BASE_URL}${String(p.imageUrl || 'image/AllEle.webp').replace(/^\/+/, '')}`,
+            tags: Array.isArray(p.tags) ? p.tags : [],
+          }))
+        );
+        setOffers(offerRes.offers || []);
+        setGallery(galRes.items || []);
+        setFaqs(faqRes.faqs || []);
+        if (faqRes.config) setSupportConfig((prev) => ({ ...prev, ...faqRes.config }));
+      } catch {
+        setBackendConnected(false);
+      }
     }
 
     if (authClient) {

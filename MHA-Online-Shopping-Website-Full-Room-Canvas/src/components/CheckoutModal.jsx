@@ -3,7 +3,7 @@ import { apiFetch, getToken } from '../api.js';
 import { inr, useStore } from '../context/StoreContext.jsx';
 
 export default function CheckoutModal() {
-  const { checkoutOpen, setCheckoutOpen, cartTotal, cart, clearCart, toast } = useStore();
+  const { checkoutOpen, setCheckoutOpen, cartTotal, cart, clearCart, toast, backendConnected } = useStore();
   const [address, setAddress] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('UPI');
   const [placedOrder, setPlacedOrder] = useState(null);
@@ -52,6 +52,15 @@ export default function CheckoutModal() {
           unitsEarned: ord.unitsEarned,
         });
         clearCart();
+      } else if (!backendConnected) {
+        const orderNumber = 'MHA-DEMO-' + String(Date.now()).slice(-6);
+        setPlacedOrder({
+          orderNumber,
+          total: cartTotal,
+          unitsEarned: Number((cartTotal / 10000).toFixed(2)),
+        });
+        clearCart();
+        toast('Demo order placed (connect backend API for live DB orders)');
       } else {
         toast('Please login to place an order');
       }
