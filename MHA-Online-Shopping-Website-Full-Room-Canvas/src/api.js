@@ -1,8 +1,11 @@
 const isLocalhost =
   typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
+const rawEnvApi = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+const envApiBase = rawEnvApi ? (rawEnvApi.endsWith('/api') ? rawEnvApi : `${rawEnvApi}/api`) : '';
+
 export const API_BASE =
-  import.meta.env.VITE_API_URL ||
+  envApiBase ||
   (isLocalhost ? 'http://127.0.0.1:5000/api' : 'https://mha-production-c977c1c9.up.railway.app/api');
 export const BACKEND_ORIGIN = API_BASE.replace(/\/api\/?$/, '');
 export const IS_REMOTE_WITHOUT_API = false;
