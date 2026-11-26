@@ -5,13 +5,13 @@ RUN apt-get update -y && apt-get install -y openssl ca-certificates && rm -rf /v
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install --omit=dev
-
 COPY prisma ./prisma
-RUN npx prisma generate
+# prisma is a devDependency and the postinstall script runs "prisma generate",
+# so dev dependencies must be installed for the CLI to be available.
+RUN npm install
 
 COPY src ./src
-COPY uploads ./uploads
+RUN mkdir -p uploads
 
 ENV NODE_ENV=production
 EXPOSE 5000
