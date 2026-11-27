@@ -58,12 +58,9 @@ export async function adminLogin(req, res, next) {
 
 export async function adminRegister(req, res, next) {
   try {
-    const { username, email, password, inviteCode, role } = req.body;
+    const { username, email, password, role } = req.body;
     if (!username || !email || !password || password.length < 6) {
       throw new AppError('Username, valid email, and password (min 6 chars) are required', 400);
-    }
-    if (inviteCode !== env.adminInviteCode) {
-      throw new AppError('Invalid Admin Invite Code', 403);
     }
 
     const existing = await prisma.adminUser.findFirst({
@@ -98,7 +95,7 @@ export async function adminRegister(req, res, next) {
       expiresIn: env.adminJwtExpiresIn,
     });
 
-    await logAdminAction(admin.id, 'ADMIN_REGISTER', `Registered admin ${admin.username} (${admin.role})`, req.ip);
+    await logAdminAction(req.admin?.id || admin.id, 'ADMIN_REGISTER', `Created staff admin ${admin.username} (${admin.role})`, req.ip);
 
     res.status(201).json({
       admin: {

@@ -41,9 +41,9 @@ import { upload } from '../middleware/upload.js';
 const router = Router();
 
 router.post('/login', adminLogin);
-router.post('/register', adminRegister);
 
 router.use(requireAdmin);
+router.post('/register', requirePermission('*'), adminRegister);
 router.get('/dashboard', getDashboardStats);
 
 router.post('/products', requirePermission('products'), upload.single('image'), adminCreateProduct);

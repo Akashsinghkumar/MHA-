@@ -1,10 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { apiFetch } from '../api.js';
+import { apiFetch, getAdminUser } from '../api.js';
 
 export default function SettingsPage() {
+  const currentAdmin = getAdminUser();
+  const isSuperAdmin = currentAdmin?.role === 'SUPER_ADMIN';
+
   const [settings, setSettings] = useState({});
   const [logs, setLogs] = useState([]);
   const [msg, setMsg] = useState('');
+
+  const [staffForm, setStaffForm] = useState({
+    username: '',
+    email: '',
+    role: 'MANAGER',
+    password: '',
+  });
+  const [staffMsg, setStaffMsg] = useState('');
+  const [staffErr, setStaffErr] = useState('');
 
   async function load() {
     const [sRes, lRes] = await Promise.all([apiFetch('/admin/settings'), apiFetch('/admin/logs')]);
@@ -19,6 +31,23 @@ export default function SettingsPage() {
     await apiFetch('/admin/settings', { method: 'PUT', body: JSON.stringify(settings) });
     setMsg('Settings saved to database.');
     load();
+  }
+
+  async function createStaff(e) {
+    e.preventDefault();
+    setStaffMsg('');
+    setStaffErr('');
+    try {
+      const res = await apiFetch('/admin/register', {
+        method: 'POST',
+        body: JSON.stringify(staffForm),
+      });
+      setStaffMsg(`Staff account created: ${res.admin.username} (${res.admin.role})`);
+      setStaffForm({ username: '', email: '', role: 'MANAGER', password: '' });
+      load();
+    } catch (err) {
+      setStaffErr(err.message);
+    }
   }
 
   return (
@@ -42,6 +71,54 @@ export default function SettingsPage() {
         </div>
         <button className="btn" style={{ marginTop: '12px' }} type="submit">Save Settings</button>
       </form>
+
+      {isSuperAdmin && (
+        <>
+          <h3>Create Staff Admin (Super Admin Only)</h3>
+          <form onSubmit={createStaff} className="card-box">
+            <div className="form-grid">
+              <label>Username
+                <input
+                  required
+                  value={staffForm.username}
+                  onChange={(e) => setStaffForm({ ...staffForm, username: e.target.value })}
+                  placeholder="e.g. rahul_manager"
+                />
+              </label>
+              <label>Email
+                <input
+                  type="email"
+                  required
+                  value={staffForm.email}
+                  onChange={(e) => setStaffForm({ ...staffForm, email: e.target.value })}
+                  placeholder="rahul@mha-shop.com"
+                />
+              </label>
+              <label>Role
+                <select value={staffForm.role} onChange={(e) => setStaffForm({ ...staffForm, role: e.target.value })}>
+                  <option value="MANAGER">Manager</option>
+                  <option value="SUPPORT_STAFF">Support Staff</option>
+                  <option value="FINANCE">Finance</option>
+                  <option value="SUPER_ADMIN">Super Admin</option>
+                </select>
+              </label>
+              <label>Password (min 6 chars)
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={staffForm.password}
+                  onChange={(e) => setStaffForm({ ...staffForm, password: e.target.value })}
+                  placeholder="Set initial password"
+                />
+              </label>
+            </div>
+            <button className="btn" style={{ marginTop: '12px' }} type="submit">Create Staff Account</button>
+            {staffMsg && <p style={{ color: 'var(--teal)', fontWeight: 700, marginTop: '10px' }}>{staffMsg}</p>}
+            {staffErr && <p className="err">{staffErr}</p>}
+          </form>
+        </>
+      )}
 
       <h3>Recent Admin Logs</h3>
       <div className="table-wrap">
