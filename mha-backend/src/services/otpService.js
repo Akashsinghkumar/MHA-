@@ -21,6 +21,24 @@ async function sendEmailOtp(email, code, purpose) {
     <p style="margin:16px 0 0;font-size:12px;color:#64748b">This code expires in ${OTP_TTL_MINUTES} minutes. Never share it with anyone.</p>
   </div>`;
 
+  if (process.env.GMAIL_WEBHOOK_URL) {
+    const res = await fetch(process.env.GMAIL_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: email,
+        subject,
+        html,
+        secret: process.env.GMAIL_WEBHOOK_SECRET || '',
+      }),
+    });
+    const text = await res.text().catch(() => '');
+    if (!res.ok || text.includes('"ok":false')) {
+      throw new AppError(`Gmail Webhook failed (${res.status}): ${text.slice(0, 120)}`, 502);
+    }
+    return { delivered: true, provider: 'gmail-webhook' };
+  }
+
   if (process.env.RESEND_API_KEY) {
     const from = process.env.EMAIL_FROM || 'MHA Shopping <onboarding@resend.dev>';
     const res = await fetch('https://api.resend.com/emails', {

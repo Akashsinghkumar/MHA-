@@ -21,7 +21,8 @@ async function logAdminAction(adminId, action, details, ip) {
 
 function hasHttpsEmailProvider() {
   return Boolean(
-    process.env.RESEND_API_KEY ||
+    process.env.GMAIL_WEBHOOK_URL ||
+      process.env.RESEND_API_KEY ||
       process.env.BREVO_API_KEY ||
       process.env.OTP_DEV_MODE === 'true'
   );
