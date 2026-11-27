@@ -297,28 +297,33 @@ async function main() {
     });
   }
 
-  // 9. Initial Super Admin
+  // 9. Initial Super Admin (only seed if no SUPER_ADMIN exists yet)
   const adminUsername = process.env.SEED_ADMIN_USERNAME || 'admin';
   const adminEmail = process.env.SEED_ADMIN_EMAIL || 'learn.logicbuilder01@gmail.com';
   const adminPass = process.env.SEED_ADMIN_PASSWORD || 'ChangeMeAdmin123!';
-  const passwordHash = await bcrypt.hash(adminPass, 12);
 
   await prisma.adminUser.updateMany({
     where: { email: 'admin@mha-shop.com' },
     data: { email: adminEmail },
   });
 
-  await prisma.adminUser.upsert({
-    where: { username: adminUsername },
-    update: {},
-    create: {
-      username: adminUsername,
-      email: adminEmail,
-      passwordHash,
-      role: 'SUPER_ADMIN',
-      permissions: ['*'],
-    },
+  const existingSuperAdmin = await prisma.adminUser.findFirst({
+    where: { role: 'SUPER_ADMIN' },
+    select: { id: true },
   });
+
+  if (!existingSuperAdmin) {
+    const passwordHash = await bcrypt.hash(adminPass, 12);
+    await prisma.adminUser.create({
+      data: {
+        username: adminUsername,
+        email: adminEmail,
+        passwordHash,
+        role: 'SUPER_ADMIN',
+        permissions: ['*'],
+      },
+    });
+  }
 
   try {
     await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('products', 'id'), COALESCE((SELECT MAX(id) FROM products), 1));`);

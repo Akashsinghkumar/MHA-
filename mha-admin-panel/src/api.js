@@ -41,7 +41,23 @@ export async function apiFetch(path, options = {}) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  let res;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    try {
+      res = await fetch(`${API_BASE}${path}`, { ...options, headers, signal: controller.signal });
+      clearTimeout(timer);
+      break;
+    } catch (err) {
+      clearTimeout(timer);
+      if (attempt === 0 && err.name !== 'AbortError') {
+        await new Promise((r) => setTimeout(r, 700));
+        continue;
+      }
+      throw new Error('Server is temporarily unreachable. Please try again in a moment.');
+    }
+  }
   const data = await res.json().catch(() => ({}));
 
   if (res.status === 401) {

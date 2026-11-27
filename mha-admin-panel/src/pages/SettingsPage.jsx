@@ -18,6 +18,8 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState({});
   const [logs, setLogs] = useState([]);
   const [msg, setMsg] = useState('');
+  const [loadErr, setLoadErr] = useState('');
+  const [loading, setLoading] = useState(true);
 
   const [staffList, setStaffList] = useState([]);
   const [editingStaff, setEditingStaff] = useState(null);
@@ -35,12 +37,20 @@ export default function SettingsPage() {
   const [pwErr, setPwErr] = useState('');
 
   async function load() {
-    const reqs = [apiFetch('/admin/settings'), apiFetch('/admin/logs')];
-    if (isSuperAdmin) reqs.push(apiFetch('/admin/staff'));
-    const [sRes, lRes, stRes] = await Promise.all(reqs);
-    setSettings(sRes.settings || {});
-    setLogs(lRes.logs || []);
-    if (stRes?.staff) setStaffList(stRes.staff);
+    setLoadErr('');
+    setLoading(true);
+    try {
+      const reqs = [apiFetch('/admin/settings'), apiFetch('/admin/logs')];
+      if (isSuperAdmin) reqs.push(apiFetch('/admin/staff'));
+      const [sRes, lRes, stRes] = await Promise.all(reqs);
+      setSettings(sRes.settings || {});
+      setLogs(lRes.logs || []);
+      if (stRes?.staff) setStaffList(stRes.staff);
+    } catch (err) {
+      setLoadErr(err.message || 'Could not load settings from server.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { load(); }, []);
@@ -151,8 +161,15 @@ export default function SettingsPage() {
   return (
     <>
       <h2>Settings &amp; Audit Logs</h2>
+      {loadErr && (
+        <div className="err" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+          <span>{loadErr}</span>
+          <button type="button" className="btn sm" onClick={load}>Retry</button>
+        </div>
+      )}
+      {loading && <p style={{ color: 'var(--mut)', fontSize: '13px' }}>Loading settings…</p>}
       {isDefaultSetup && (
-        <div className="err" style={{ background: 'rgba(255, 210, 77, 0.14)', color: '#ffd24d', border: '1px solid rgba(255, 210, 77, 0.35)', marginBottom: '14px' }}>
+        <div style={{ background: '#fefce8', color: '#854d0e', border: '1px solid #fde047', padding: '10px 14px', borderRadius: '8px', marginBottom: '14px', fontWeight: 600, fontSize: '13.5px' }}>
           Security Notice: You signed in with the default password. Please set your real Owner Gmail below and update your Admin Password!
         </div>
       )}
