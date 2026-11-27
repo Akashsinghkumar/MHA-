@@ -7,7 +7,7 @@ const NAV_ITEMS = [
   ['/website-cms', 'Website CMS (Design & Data)'],
   ['/gallery-management', 'Gallery Management'],
   ['/support-center', 'Support Center'],
-  ['/users', 'Registered Users Data'],
+  ['/users', 'Member & KYC Approval'],
   ['/products', 'Product Management'],
   ['/orders', 'Order Management'],
   ['/offers', 'Offers Management'],
