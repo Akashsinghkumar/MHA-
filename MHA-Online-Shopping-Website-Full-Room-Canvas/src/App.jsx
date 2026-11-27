@@ -16,6 +16,23 @@ import GalleryPage from './pages/GalleryPage.jsx';
 import SupportPage from './pages/SupportPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import MemberPortalPage from './pages/MemberPortalPage.jsx';
+import PolicyPage from './pages/PolicyPage.jsx';
+
+const PAGE_TITLES = {
+  '/': 'MHA Online Shopping — Furniture, Electronics, EV Scooters & Accessories',
+  '/shop': 'Shop All Products — MHA Online Shopping',
+  '/furniture': 'Furniture for Every Room — MHA Online Shopping',
+  '/electronics': 'Electronics & Smart Appliances — MHA Online Shopping',
+  '/ev-scooters': 'Electric Scooters — MHA Online Shopping',
+  '/accessories': 'Accessories & Add-ons — MHA Online Shopping',
+  '/offers': 'Offers, Combos & Promo Codes — MHA Online Shopping',
+  '/gallery': 'Gallery & Customer Photos — MHA Online Shopping',
+  '/support': 'Support Centre — MHA Online Shopping',
+  '/login': 'Sign In or Create Account — MHA Online Shopping',
+  '/privacy-policy': 'Privacy Policy — MHA Online Shopping',
+  '/terms': 'Terms & Conditions — MHA Online Shopping',
+  '/shipping-refund-policy': 'Shipping & Refund Policy — MHA Online Shopping',
+};
 
 export default function App() {
   const { pathname } = useLocation();
@@ -39,6 +56,7 @@ export default function App() {
       '/legal': 'legal',
     };
     document.body.dataset.page = map[pathname] || 'home';
+    document.title = PAGE_TITLES[pathname] || 'MHA Online Shopping';
     window.scrollTo(0, 0);
   }, [pathname]);
 
@@ -63,6 +81,9 @@ export default function App() {
         <Route path="/incomes" element={<MemberPortalPage section="incomes" />} />
         <Route path="/ledger" element={<MemberPortalPage section="ledger" />} />
         <Route path="/legal" element={<MemberPortalPage section="legal" />} />
+        <Route path="/privacy-policy" element={<PolicyPage type="privacy" />} />
+        <Route path="/terms" element={<PolicyPage type="terms" />} />
+        <Route path="/shipping-refund-policy" element={<PolicyPage type="shipping" />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Footer />

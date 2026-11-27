@@ -65,3 +65,43 @@ export function verifyGatewaySignature({ gatewayOrderId, gatewayPaymentId, gatew
     .digest('hex');
   return expected === gatewaySignature;
 }
+
+/**
+ * Triggers a Razorpay refund when live keys & a real payment ID exist,
+ * or returns a structured mock refund payload in sandbox mode.
+ */
+export async function refundGatewayPayment({ gatewayPaymentId, amountInr, notes = {} }) {
+  const amountPaise = Math.round(Number(amountInr) * 100);
+
+  if (!env.razorpayKeyId || !env.razorpayKeySecret || !gatewayPaymentId || gatewayPaymentId.startsWith('pay_mock_')) {
+    return {
+      mode: 'sandbox-mock',
+      refundId: `rfnd_mock_${Date.now()}`,
+      amount: amountPaise,
+      status: 'processed',
+    };
+  }
+
+  const auth = Buffer.from(`${env.razorpayKeyId}:${env.razorpayKeySecret}`).toString('base64');
+  const response = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(gatewayPaymentId)}/refund`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${auth}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ amount: amountPaise, notes }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Razorpay refund failed: ${errText}`);
+  }
+
+  const data = await response.json();
+  return {
+    mode: 'live',
+    refundId: data.id,
+    amount: data.amount,
+    status: data.status || 'processed',
+  };
+}

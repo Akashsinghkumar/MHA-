@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import path from 'node:path';
 import env from './config/env.js';
+import prisma from './config/db.js';
 import apiRoutes from './routes/index.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
 
@@ -55,13 +56,27 @@ app.use('/api/admin/register', authLimiter);
 
 app.use('/uploads', express.static(path.resolve('uploads')));
 
-app.get('/health', (_req, res) => {
-  res.json({
-    status: 'ok',
-    service: 'mha-backend',
-    environment: env.nodeEnv,
-    timestamp: new Date().toISOString(),
-  });
+app.get('/health', async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({
+      status: 'ok',
+      service: 'mha-backend',
+      database: 'connected',
+      environment: env.nodeEnv,
+      uptimeSeconds: Math.round(process.uptime()),
+      memoryMb: Math.round(process.memoryUsage().rss / 1024 / 1024),
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    res.status(503).json({
+      status: 'error',
+      service: 'mha-backend',
+      database: 'disconnected',
+      error: err.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
 });
 
 app.use('/api', apiRoutes);

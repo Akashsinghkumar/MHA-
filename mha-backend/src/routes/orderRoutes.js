@@ -7,6 +7,7 @@ import {
   getOrderById,
   trackOrder,
   cancelOrder,
+  requestReturnOrder,
 } from '../controllers/orderController.js';
 import { requireAuth } from '../middleware/auth.js';
 import { validateBody } from '../middleware/validate.js';
@@ -27,5 +28,6 @@ router.post('/verify-payment', verifyOrderPayment);
 router.get('/', getMyOrders);
 router.get('/:id', getOrderById);
 router.post('/:id/cancel', cancelOrder);
+router.post('/:id/return', requestReturnOrder);
 
 export default router;

@@ -227,9 +227,42 @@ export async function cancelOrder(req, res, next) {
       throw new AppError(`Cannot cancel order in ${order.status} state`, 400);
     }
 
+    const nextPaymentStatus = order.paymentStatus === 'Paid' ? 'Refund Pending' : order.paymentStatus;
     const updated = await prisma.order.update({
       where: { id: order.id },
-      data: { status: 'Cancelled', statusNote: 'Cancelled by customer' },
+      data: {
+        status: 'Cancelled',
+        paymentStatus: nextPaymentStatus,
+        statusNote: req.body?.reason ? `Cancelled by customer: ${String(req.body.reason).slice(0, 120)}` : 'Cancelled by customer',
+      },
+    });
+    res.json({ order: updated });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function requestReturnOrder(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const reason = String(req.body?.reason || '').trim();
+    if (reason.length < 5) {
+      throw new AppError('Please provide a reason for return (min 5 characters)', 400);
+    }
+    const order = await prisma.order.findFirst({
+      where: { id, userId: req.user.id },
+    });
+    if (!order) throw new AppError('Order not found', 404);
+    if (order.status !== 'Delivered') {
+      throw new AppError('Returns can only be requested for delivered orders', 400);
+    }
+
+    const updated = await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        status: 'Return Requested',
+        statusNote: `Return requested: ${reason.slice(0, 160)}`,
+      },
     });
     res.json({ order: updated });
   } catch (err) {

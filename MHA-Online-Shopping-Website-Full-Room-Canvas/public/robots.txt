@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /member
+Disallow: /units
+Disallow: /referral
+Disallow: /incomes
+Disallow: /ledger
+Sitemap: /sitemap.xml

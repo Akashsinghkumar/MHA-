@@ -123,11 +123,49 @@ export default function MemberPortalPage({ section = 'member' }) {
                 {orders.length ? (
                   <div className="tw">
                     <table>
-                      <thead><tr><th>Order</th><th>Amount</th><th>Payment</th><th>Status</th></tr></thead>
+                      <thead><tr><th>Order</th><th>Amount</th><th>Payment</th><th>Status</th><th>Action</th></tr></thead>
                       <tbody>
                         {orders.map((o) => (
                           <tr key={o.id}>
-                            <td>{o.orderNumber}</td><td>{inr(o.total)}</td><td>{o.paymentMethod}</td><td>{o.status}</td>
+                            <td>{o.orderNumber}</td>
+                            <td>{inr(o.total)}</td>
+                            <td>{o.paymentMethod} ({o.paymentStatus})</td>
+                            <td>{o.status}</td>
+                            <td>
+                              {['Processing', 'Pending', 'Confirmed'].includes(o.status) && (
+                                <button
+                                  type="button"
+                                  className="mb o"
+                                  onClick={async () => {
+                                    if (!confirm(`Cancel order ${o.orderNumber}?`)) return;
+                                    try {
+                                      await apiFetch(`/orders/${o.id}/cancel`, { method: 'POST', body: JSON.stringify({ reason: 'Cancelled by customer' }) });
+                                      toast('Order cancelled');
+                                      loadMember();
+                                    } catch (err) { toast(err.message); }
+                                  }}
+                                >
+                                  Cancel
+                                </button>
+                              )}
+                              {o.status === 'Delivered' && (
+                                <button
+                                  type="button"
+                                  className="mb o"
+                                  onClick={async () => {
+                                    const reason = prompt('Enter reason for return / refund:');
+                                    if (!reason || reason.trim().length < 5) return;
+                                    try {
+                                      await apiFetch(`/orders/${o.id}/return`, { method: 'POST', body: JSON.stringify({ reason: reason.trim() }) });
+                                      toast('Return request submitted');
+                                      loadMember();
+                                    } catch (err) { toast(err.message); }
+                                  }}
+                                >
+                                  Return / Refund
+                                </button>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>

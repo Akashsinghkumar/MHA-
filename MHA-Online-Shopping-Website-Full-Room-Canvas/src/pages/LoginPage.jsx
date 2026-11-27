@@ -542,7 +542,12 @@ export default function LoginPage() {
                   checked={agreedTerms}
                   onChange={(e) => setAgreedTerms(e.target.checked)}
                 />
-                <span>I agree to the Terms &amp; Conditions and Privacy Policy.</span>
+                <span>
+                  I agree to the{' '}
+                  <a href="/terms" target="_blank" rel="noreferrer" style={{ color: '#064896', fontWeight: 600 }}>Terms &amp; Conditions</a>
+                  {' '}and{' '}
+                  <a href="/privacy-policy" target="_blank" rel="noreferrer" style={{ color: '#064896', fontWeight: 600 }}>Privacy Policy</a>.
+                </span>
               </label>
 
               <button className="auth-submit-btn" type="submit" disabled={loading}>

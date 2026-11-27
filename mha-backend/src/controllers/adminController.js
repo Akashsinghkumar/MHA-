@@ -5,6 +5,7 @@ import env from '../config/env.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { getUploadedFileUrl } from '../services/uploadService.js';
 import { createAndSendOtp, verifyOtpCode } from '../services/otpService.js';
+import { refundGatewayPayment } from '../services/paymentService.js';
 
 async function logAdminAction(adminId, action, details, ip) {
   try {
@@ -430,6 +431,46 @@ export async function adminUpdateOrderStatus(req, res, next) {
     });
     await logAdminAction(req.admin.id, 'UPDATE_ORDER', `Order #${order.orderNumber} -> ${status}`, req.ip);
     res.json({ order });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function adminRefundOrder(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const order = await prisma.order.findUnique({
+      where: { id },
+      include: { payments: { where: { status: 'Paid' }, orderBy: { id: 'desc' }, take: 1 } },
+    });
+    if (!order) throw new AppError('Order not found', 404);
+    if (order.paymentStatus === 'Refunded') {
+      throw new AppError('Order is already refunded', 400);
+    }
+
+    const paidPayment = order.payments?.[0];
+    const refundRes = await refundGatewayPayment({
+      gatewayPaymentId: paidPayment?.gatewayPaymentId,
+      amountInr: Number(order.total),
+      notes: { orderNumber: order.orderNumber },
+    });
+
+    const updated = await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        status: 'Refunded',
+        paymentStatus: 'Refunded',
+        statusNote: `Refund processed (${refundRes.refundId})`,
+      },
+    });
+
+    await logAdminAction(
+      req.admin.id,
+      'ADMIN_ORDER_REFUND',
+      `Refunded Order #${order.orderNumber} (${refundRes.refundId})`,
+      req.ip
+    );
+    res.json({ order: updated, refund: refundRes });
   } catch (err) {
     next(err);
   }

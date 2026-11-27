@@ -26,6 +26,9 @@ export default function Footer() {
             <li><Link to="/shop"><span>›</span> Shop All</Link></li>
             <li><Link to="/#about"><span>›</span> About Us</Link></li>
             <li><Link to="/support"><span>›</span> Contact Us</Link></li>
+            <li><Link to="/privacy-policy"><span>›</span> Privacy Policy</Link></li>
+            <li><Link to="/terms"><span>›</span> Terms &amp; Conditions</Link></li>
+            <li><Link to="/shipping-refund-policy"><span>›</span> Shipping &amp; Refunds</Link></li>
           </ul>
         </div>
 

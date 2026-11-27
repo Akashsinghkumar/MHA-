@@ -14,6 +14,7 @@ import {
   adminUpsertCategory,
   adminListOrders,
   adminUpdateOrderStatus,
+  adminRefundOrder,
   adminListUsers,
   adminGetUserDetail,
   adminToggleUserBlock,
@@ -70,6 +71,7 @@ router.post('/categories', requirePermission('categories'), upload.single('image
 
 router.get('/orders', requirePermission('orders'), adminListOrders);
 router.put('/orders/:id', requirePermission('orders'), adminUpdateOrderStatus);
+router.post('/orders/:id/refund', requirePermission('orders'), adminRefundOrder);
 
 router.get('/users', requirePermission('users'), adminListUsers);
 router.get('/users/:id', requirePermission('users'), adminGetUserDetail);
