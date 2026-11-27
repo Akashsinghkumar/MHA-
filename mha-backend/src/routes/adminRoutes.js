@@ -25,7 +25,10 @@ import {
   adminReviewKyc,
   adminUpsertOffer,
   adminManageGallery,
+  adminListSupport,
   adminUpdateTicketStatus,
+  adminUpdateWarrantyStatus,
+  adminUpdateServiceBooking,
   adminListPayouts,
   adminProcessPayout,
   adminRunClosing,
@@ -87,7 +90,10 @@ router.put('/kyc/:userId', requirePermission('kyc'), adminReviewKyc);
 
 router.post('/offers', requirePermission('offers'), upload.single('banner'), adminUpsertOffer);
 router.put('/gallery/:id', requirePermission('gallery'), adminManageGallery);
+router.get('/support', requirePermission('support'), adminListSupport);
 router.put('/support/:id', requirePermission('support'), adminUpdateTicketStatus);
+router.put('/warranty/:id', requirePermission('support'), adminUpdateWarrantyStatus);
+router.put('/service-bookings/:id', requirePermission('support'), adminUpdateServiceBooking);
 
 router.get('/payouts', requirePermission('finance'), adminListPayouts);
 router.put('/payouts/:id', requirePermission('finance'), adminProcessPayout);

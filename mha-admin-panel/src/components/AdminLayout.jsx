@@ -5,6 +5,8 @@ import { getAdminUser, setAdminToken, setAdminUser } from '../api.js';
 const NAV_ITEMS = [
   ['/dashboard', 'Dashboard & Reports'],
   ['/website-cms', 'Website CMS (Design & Data)'],
+  ['/gallery-management', 'Gallery Management'],
+  ['/support-center', 'Support Center'],
   ['/users', 'Registered Users Data'],
   ['/products', 'Product Management'],
   ['/orders', 'Order Management'],

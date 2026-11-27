@@ -738,15 +738,65 @@ export async function adminManageGallery(req, res, next) {
   }
 }
 
+export async function adminListSupport(_req, res, next) {
+  try {
+    const [tickets, warrantyClaims, serviceBookings, faqs] = await Promise.all([
+      prisma.supportTicket.findMany({
+        include: { user: { select: { id: true, name: true, phone: true, email: true } } },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.warrantyClaim.findMany({
+        include: { user: { select: { id: true, name: true, phone: true } } },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.serviceBooking.findMany({
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.faq.findMany({ orderBy: { sortOrder: 'asc' } }),
+    ]);
+    res.json({ tickets, warrantyClaims, serviceBookings, faqs });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function adminUpdateTicketStatus(req, res, next) {
   try {
     const id = Number(req.params.id);
     const { status, adminReply } = req.body;
     const ticket = await prisma.supportTicket.update({
       where: { id },
-      data: { status, ...(adminReply ? { adminReply } : {}) },
+      data: { status, ...(adminReply !== undefined ? { adminReply } : {}) },
     });
     res.json({ ticket });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function adminUpdateWarrantyStatus(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const { status } = req.body;
+    const claim = await prisma.warrantyClaim.update({
+      where: { id },
+      data: { status },
+    });
+    res.json({ claim });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function adminUpdateServiceBooking(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const { status } = req.body;
+    const booking = await prisma.serviceBooking.update({
+      where: { id },
+      data: { status },
+    });
+    res.json({ booking });
   } catch (err) {
     next(err);
   }

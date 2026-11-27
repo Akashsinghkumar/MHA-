@@ -1,11 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../api.js';
 
-const BACKEND_ORIGIN = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000/api').replace(/\/api\/?$/, '');
+const isLocalhost =
+  typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const BACKEND_ORIGIN = (
+  import.meta.env.VITE_API_URL ||
+  (isLocalhost ? 'http://127.0.0.1:5000/api' : 'https://mha-production-c977c1c9.up.railway.app/api')
+).replace(/\/api\/?$/, '');
+const PUBLIC_ORIGIN = isLocalhost
+  ? 'http://127.0.0.1:5174'
+  : 'https://melodious-passion-production-30694a3f.up.railway.app';
 const resolveImg = (url) => {
   if (!url) return '';
   if (url.startsWith('/uploads/')) return `${BACKEND_ORIGIN}${url}`;
-  if (url.startsWith('/image/')) return `http://127.0.0.1:5174/MHA${url}`;
+  if (url.startsWith('/image/')) return `${PUBLIC_ORIGIN}${url}`;
   return url;
 };
 

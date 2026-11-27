@@ -11,6 +11,8 @@ import OffersPage from './pages/OffersPage.jsx';
 import PayoutsPage from './pages/PayoutsPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 import WebsiteCmsPage from './pages/WebsiteCmsPage.jsx';
+import SupportCenterPage from './pages/SupportCenterPage.jsx';
+import GalleryManagementPage from './pages/GalleryManagementPage.jsx';
 
 export default function App() {
   const [authed, setAuthed] = useState(Boolean(getAdminToken()));
@@ -25,6 +27,8 @@ export default function App() {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="website-cms" element={<WebsiteCmsPage />} />
+        <Route path="gallery-management" element={<GalleryManagementPage />} />
+        <Route path="support-center" element={<SupportCenterPage />} />
         <Route path="users" element={<UsersDataPage />} />
         <Route path="products" element={<ProductsPage />} />
         <Route path="orders" element={<OrdersPage />} />
