@@ -299,9 +299,14 @@ async function main() {
 
   // 9. Initial Super Admin
   const adminUsername = process.env.SEED_ADMIN_USERNAME || 'admin';
-  const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@mha-shop.com';
+  const adminEmail = process.env.SEED_ADMIN_EMAIL || 'learn.logicbuilder01@gmail.com';
   const adminPass = process.env.SEED_ADMIN_PASSWORD || 'ChangeMeAdmin123!';
   const passwordHash = await bcrypt.hash(adminPass, 12);
+
+  await prisma.adminUser.updateMany({
+    where: { email: 'admin@mha-shop.com' },
+    data: { email: adminEmail },
+  });
 
   await prisma.adminUser.upsert({
     where: { username: adminUsername },
