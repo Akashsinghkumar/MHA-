@@ -33,8 +33,15 @@ async function sendEmailOtp(email, code, purpose) {
       }),
     });
     const text = await res.text().catch(() => '');
-    if (!res.ok || text.includes('"ok":false')) {
-      throw new AppError(`Gmail Webhook failed (${res.status}): ${text.slice(0, 120)}`, 502);
+    let parsed = null;
+    try {
+      parsed = JSON.parse(text);
+    } catch {}
+    if (!res.ok || !parsed?.ok) {
+      const hint = text.includes('accounts.google.com')
+        ? 'Google Apps Script requires "Who has access: Anyone" in Deploy settings.'
+        : text.replace(/<[^>]+>/g, ' ').trim().slice(0, 120);
+      throw new AppError(`Gmail Webhook failed (${res.status}): ${hint || 'Invalid response'}`, 502);
     }
     return { delivered: true, provider: 'gmail-webhook' };
   }

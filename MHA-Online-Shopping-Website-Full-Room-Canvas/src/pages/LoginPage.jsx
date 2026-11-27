@@ -595,7 +595,12 @@ export default function LoginPage() {
               {resetOtpSent && (
                 <>
                   <label>
-                    6-Digit OTP
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>6-Digit OTP</span>
+                      <button type="button" className="auth-send-otp-btn" disabled={loading} onClick={handleSendResetOtp}>
+                        Resend OTP
+                      </button>
+                    </div>
                     <input
                       className="auth-pill-input"
                       value={resetOtp}
@@ -721,7 +726,12 @@ export default function LoginPage() {
               ) : (
                 loginOtpSent && (
                   <label>
-                    6-Digit OTP
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>6-Digit OTP</span>
+                      <button type="button" className="auth-send-otp-btn" disabled={loading} onClick={handleSendLoginOtp}>
+                        Resend OTP
+                      </button>
+                    </div>
                     <input
                       className="auth-pill-input"
                       value={loginOtp}

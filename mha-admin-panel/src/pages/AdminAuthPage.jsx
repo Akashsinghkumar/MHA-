@@ -170,7 +170,35 @@ export default function AdminAuthPage({ onAuth }) {
 
               {requiresOtp && (
                 <label>
-                  Admin Email OTP (6 digits)
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Admin Email OTP (6 digits)</span>
+                    <button
+                      type="button"
+                      disabled={loading}
+                      style={{ background: 'none', border: 'none', color: '#064896', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}
+                      onClick={async () => {
+                        setError('');
+                        setInfo('');
+                        setLoading(true);
+                        try {
+                          const data = await apiFetch('/admin/login', {
+                            method: 'POST',
+                            body: JSON.stringify({ username: username.trim(), password }),
+                          });
+                          if (data.requiresOtp) {
+                            const devNote = data.devOtp ? ` (Test OTP: ${data.devOtp})` : '';
+                            setInfo(`OTP resent! ${data.message}${devNote}`);
+                          }
+                        } catch (err) {
+                          setError(err.message);
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                    >
+                      Resend OTP
+                    </button>
+                  </div>
                   <input
                     className="admin-pill-input"
                     value={otp}
@@ -203,7 +231,33 @@ export default function AdminAuthPage({ onAuth }) {
               {resetOtpSent && (
                 <>
                   <label>
-                    6-Digit Email OTP
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>6-Digit Email OTP</span>
+                      <button
+                        type="button"
+                        disabled={loading}
+                        style={{ background: 'none', border: 'none', color: '#064896', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}
+                        onClick={async () => {
+                          setError('');
+                          setInfo('');
+                          setLoading(true);
+                          try {
+                            const res = await apiFetch('/admin/forgot-password/send-otp', {
+                              method: 'POST',
+                              body: JSON.stringify({ identifier: resetId.trim() }),
+                            });
+                            const devNote = res.devOtp ? ` (Test OTP: ${res.devOtp})` : '';
+                            setInfo(`OTP resent! ${res.message}${devNote}`);
+                          } catch (err) {
+                            setError(err.message);
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                      >
+                        Resend OTP
+                      </button>
+                    </div>
                     <input
                       className="admin-pill-input"
                       value={resetOtp}
