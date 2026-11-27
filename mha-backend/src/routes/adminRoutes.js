@@ -1,7 +1,9 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import {
   adminLogin,
   adminRegister,
+  adminChangePassword,
   getDashboardStats,
   adminCreateProduct,
   adminUpdateProduct,
@@ -40,9 +42,18 @@ import { upload } from '../middleware/upload.js';
 
 const router = Router();
 
-router.post('/login', adminLogin);
+const adminLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many admin login attempts. Please wait 15 minutes.' },
+});
+
+router.post('/login', adminLoginLimiter, adminLogin);
 
 router.use(requireAdmin);
+router.put('/change-password', adminChangePassword);
 router.post('/register', requirePermission('*'), adminRegister);
 router.get('/dashboard', getDashboardStats);
 

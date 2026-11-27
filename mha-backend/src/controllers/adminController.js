@@ -4,6 +4,7 @@ import prisma from '../config/db.js';
 import env from '../config/env.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { getUploadedFileUrl } from '../services/uploadService.js';
+import { createAndSendOtp, verifyOtpCode } from '../services/otpService.js';
 
 async function logAdminAction(adminId, action, details, ip) {
   try {
@@ -19,7 +20,7 @@ async function logAdminAction(adminId, action, details, ip) {
 
 export async function adminLogin(req, res, next) {
   try {
-    const { username, password } = req.body;
+    const { username, password, otp } = req.body;
     const admin = await prisma.adminUser.findUnique({ where: { username } });
     if (!admin || !admin.isActive) {
       throw new AppError('Invalid admin credentials', 401);
@@ -27,7 +28,32 @@ export async function adminLogin(req, res, next) {
 
     const ok = await bcrypt.compare(password, admin.passwordHash);
     if (!ok) {
+      await logAdminAction(admin.id, 'ADMIN_LOGIN_FAILED', `Failed password attempt for ${admin.username}`, req.ip);
       throw new AppError('Invalid admin credentials', 401);
+    }
+
+    if (process.env.ADMIN_2FA_ENABLED === 'true' && admin.email) {
+      if (!otp) {
+        const otpRes = await createAndSendOtp({
+          channel: 'email',
+          target: admin.email,
+          purpose: 'admin_login',
+        });
+        const [localPart, domain] = admin.email.split('@');
+        const masked = `${localPart.slice(0, 2)}***@${domain}`;
+        return res.json({
+          requiresOtp: true,
+          emailMasked: masked,
+          message: `Verification OTP sent to ${masked}`,
+          ...(otpRes.devOtp ? { devOtp: otpRes.devOtp } : {}),
+        });
+      }
+      await verifyOtpCode({
+        channel: 'email',
+        target: admin.email,
+        code: otp,
+        purpose: 'admin_login',
+      });
     }
 
     await prisma.adminUser.update({
@@ -51,6 +77,32 @@ export async function adminLogin(req, res, next) {
       },
       token,
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function adminChangePassword(req, res, next) {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword || newPassword.length < 8) {
+      throw new AppError('Current password and new password (min 8 chars) are required', 400);
+    }
+    const admin = await prisma.adminUser.findUnique({ where: { id: req.admin.id } });
+    if (!admin) {
+      throw new AppError('Admin not found', 404);
+    }
+    const ok = await bcrypt.compare(currentPassword, admin.passwordHash);
+    if (!ok) {
+      throw new AppError('Current password is incorrect', 401);
+    }
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await prisma.adminUser.update({
+      where: { id: admin.id },
+      data: { passwordHash },
+    });
+    await logAdminAction(admin.id, 'ADMIN_PASSWORD_CHANGED', `Password changed for ${admin.username}`, req.ip);
+    res.json({ message: 'Admin password updated successfully.' });
   } catch (err) {
     next(err);
   }

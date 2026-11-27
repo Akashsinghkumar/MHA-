@@ -5,6 +5,9 @@ import { apiFetch, setAdminToken, setAdminUser } from '../api.js';
 export default function AdminAuthPage({ onAuth }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
+  const [requiresOtp, setRequiresOtp] = useState(false);
+  const [info, setInfo] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -12,12 +15,24 @@ export default function AdminAuthPage({ onAuth }) {
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    setInfo('');
     setLoading(true);
     try {
+      const payload = requiresOtp
+        ? { username: username.trim(), password, otp: otp.trim() }
+        : { username: username.trim(), password };
       const data = await apiFetch('/admin/login', {
         method: 'POST',
-        body: JSON.stringify({ username: username.trim(), password }),
+        body: JSON.stringify(payload),
       });
+
+      if (data.requiresOtp) {
+        setRequiresOtp(true);
+        const devNote = data.devOtp ? ` (Test OTP: ${data.devOtp})` : '';
+        setInfo(`${data.message}${devNote}`);
+        return;
+      }
+
       setAdminToken(data.token);
       setAdminUser(data.admin);
       if (onAuth) onAuth(data.admin);
@@ -71,7 +86,9 @@ export default function AdminAuthPage({ onAuth }) {
 
           <h1>Admin Sign In</h1>
           <p className="admin-form-subtitle">
-            Sign in with your authorized admin username and password.
+            {requiresOtp
+              ? 'Enter the 6-digit verification OTP sent to your admin email.'
+              : 'Sign in with your authorized admin username and password.'}
           </p>
 
           <label>
@@ -79,6 +96,7 @@ export default function AdminAuthPage({ onAuth }) {
             <input
               className="admin-pill-input"
               value={username}
+              disabled={requiresOtp}
               onChange={(e) => setUsername(e.target.value)}
               required
               placeholder="Enter admin username"
@@ -91,16 +109,32 @@ export default function AdminAuthPage({ onAuth }) {
               className="admin-pill-input"
               type="password"
               value={password}
+              disabled={requiresOtp}
               onChange={(e) => setPassword(e.target.value)}
               required
               placeholder="••••••••"
             />
           </label>
 
+          {requiresOtp && (
+            <label>
+              Admin Email OTP (6 digits)
+              <input
+                className="admin-pill-input"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                required
+                maxLength={6}
+                placeholder="Enter 6-digit OTP"
+              />
+            </label>
+          )}
+
           <button className="admin-submit-btn" type="submit" disabled={loading}>
-            {loading ? 'Please wait…' : 'Sign In to Dashboard →'}
+            {loading ? 'Please wait…' : requiresOtp ? 'Verify OTP & Sign In →' : 'Sign In to Dashboard →'}
           </button>
 
+          {info && <div style={{ color: '#15803d', fontSize: '13px', fontWeight: 600 }}>{info}</div>}
           {error && <div className="admin-error-msg">{error}</div>}
         </form>
       </div>

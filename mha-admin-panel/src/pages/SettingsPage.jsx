@@ -18,6 +18,10 @@ export default function SettingsPage() {
   const [staffMsg, setStaffMsg] = useState('');
   const [staffErr, setStaffErr] = useState('');
 
+  const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [pwMsg, setPwMsg] = useState('');
+  const [pwErr, setPwErr] = useState('');
+
   async function load() {
     const [sRes, lRes] = await Promise.all([apiFetch('/admin/settings'), apiFetch('/admin/logs')]);
     setSettings(sRes.settings || {});
@@ -47,6 +51,30 @@ export default function SettingsPage() {
       load();
     } catch (err) {
       setStaffErr(err.message);
+    }
+  }
+
+  async function changePassword(e) {
+    e.preventDefault();
+    setPwMsg('');
+    setPwErr('');
+    if (pwForm.newPassword !== pwForm.confirmPassword) {
+      setPwErr('New passwords do not match.');
+      return;
+    }
+    try {
+      const res = await apiFetch('/admin/change-password', {
+        method: 'PUT',
+        body: JSON.stringify({
+          currentPassword: pwForm.currentPassword,
+          newPassword: pwForm.newPassword,
+        }),
+      });
+      setPwMsg(res.message);
+      setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      load();
+    } catch (err) {
+      setPwErr(err.message);
     }
   }
 
@@ -119,6 +147,44 @@ export default function SettingsPage() {
           </form>
         </>
       )}
+
+      <h3>Change My Admin Password</h3>
+      <form onSubmit={changePassword} className="card-box">
+        <div className="form-grid">
+          <label>Current Password
+            <input
+              type="password"
+              required
+              value={pwForm.currentPassword}
+              onChange={(e) => setPwForm({ ...pwForm, currentPassword: e.target.value })}
+              placeholder="Enter current password"
+            />
+          </label>
+          <label>New Password (min 8 chars)
+            <input
+              type="password"
+              required
+              minLength={8}
+              value={pwForm.newPassword}
+              onChange={(e) => setPwForm({ ...pwForm, newPassword: e.target.value })}
+              placeholder="Enter new password"
+            />
+          </label>
+          <label>Confirm New Password
+            <input
+              type="password"
+              required
+              minLength={8}
+              value={pwForm.confirmPassword}
+              onChange={(e) => setPwForm({ ...pwForm, confirmPassword: e.target.value })}
+              placeholder="Re-enter new password"
+            />
+          </label>
+        </div>
+        <button className="btn" style={{ marginTop: '12px' }} type="submit">Update Admin Password</button>
+        {pwMsg && <p style={{ color: 'var(--teal)', fontWeight: 700, marginTop: '10px' }}>{pwMsg}</p>}
+        {pwErr && <p className="err">{pwErr}</p>}
+      </form>
 
       <h3>Recent Admin Logs</h3>
       <div className="table-wrap">
