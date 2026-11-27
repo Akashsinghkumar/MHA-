@@ -7,6 +7,9 @@ import {
   adminRegister,
   adminChangePassword,
   adminUpdateProfile,
+  adminListStaff,
+  adminUpdateStaff,
+  adminDeleteStaff,
   getDashboardStats,
   adminCreateProduct,
   adminUpdateProduct,
@@ -62,6 +65,9 @@ router.use(requireAdmin);
 router.put('/profile', adminUpdateProfile);
 router.put('/change-password', adminChangePassword);
 router.post('/register', requirePermission('*'), adminRegister);
+router.get('/staff', requirePermission('*'), adminListStaff);
+router.put('/staff/:id', requirePermission('*'), adminUpdateStaff);
+router.delete('/staff/:id', requirePermission('*'), adminDeleteStaff);
 router.get('/dashboard', getDashboardStats);
 
 router.post('/products', requirePermission('products'), upload.single('image'), adminCreateProduct);

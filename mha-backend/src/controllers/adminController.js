@@ -181,6 +181,85 @@ export async function adminUpdateProfile(req, res, next) {
   }
 }
 
+export async function adminListStaff(_req, res, next) {
+  try {
+    const staff = await prisma.adminUser.findMany({
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        role: true,
+        isActive: true,
+        lastLoginAt: true,
+        createdAt: true,
+      },
+      orderBy: { id: 'asc' },
+    });
+    res.json({ staff });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function adminUpdateStaff(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const { username, email, role, isActive, password } = req.body;
+
+    const existing = await prisma.adminUser.findUnique({ where: { id } });
+    if (!existing) throw new AppError('Staff admin not found', 404);
+
+    if (id === req.admin.id && isActive === false) {
+      throw new AppError('You cannot deactivate your own Super Admin account', 400);
+    }
+
+    const adminRole = ['SUPER_ADMIN', 'MANAGER', 'SUPPORT_STAFF', 'FINANCE'].includes(role)
+      ? role
+      : existing.role;
+    const perms = adminRole === 'SUPER_ADMIN' ? ['*'] : ['products', 'orders', 'users', 'kyc', 'support'];
+
+    const data = {
+      ...(username ? { username: username.trim() } : {}),
+      ...(email ? { email: email.trim().toLowerCase() } : {}),
+      role: adminRole,
+      permissions: perms,
+      ...(typeof isActive === 'boolean' ? { isActive } : {}),
+    };
+
+    if (password && String(password).length >= 6) {
+      data.passwordHash = await bcrypt.hash(String(password), 12);
+    }
+
+    const updated = await prisma.adminUser.update({
+      where: { id },
+      data,
+      select: { id: true, username: true, email: true, role: true, isActive: true, lastLoginAt: true },
+    });
+
+    await logAdminAction(req.admin.id, 'ADMIN_STAFF_UPDATE', `Updated staff ${updated.username} (${updated.role})`, req.ip);
+    res.json({ admin: updated, message: 'Staff admin updated.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function adminDeleteStaff(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    if (id === req.admin.id) {
+      throw new AppError('You cannot delete your own Super Admin account', 400);
+    }
+    const existing = await prisma.adminUser.findUnique({ where: { id } });
+    if (!existing) throw new AppError('Staff admin not found', 404);
+
+    await prisma.adminUser.delete({ where: { id } });
+    await logAdminAction(req.admin.id, 'ADMIN_STAFF_DELETE', `Deleted staff ${existing.username}`, req.ip);
+    res.json({ message: `Deleted staff admin ${existing.username}` });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function adminChangePassword(req, res, next) {
   try {
     const { currentPassword, newPassword } = req.body;

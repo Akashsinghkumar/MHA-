@@ -19,6 +19,8 @@ export default function SettingsPage() {
   const [logs, setLogs] = useState([]);
   const [msg, setMsg] = useState('');
 
+  const [staffList, setStaffList] = useState([]);
+  const [editingStaff, setEditingStaff] = useState(null);
   const [staffForm, setStaffForm] = useState({
     username: '',
     email: '',
@@ -33,9 +35,12 @@ export default function SettingsPage() {
   const [pwErr, setPwErr] = useState('');
 
   async function load() {
-    const [sRes, lRes] = await Promise.all([apiFetch('/admin/settings'), apiFetch('/admin/logs')]);
+    const reqs = [apiFetch('/admin/settings'), apiFetch('/admin/logs')];
+    if (isSuperAdmin) reqs.push(apiFetch('/admin/staff'));
+    const [sRes, lRes, stRes] = await Promise.all(reqs);
     setSettings(sRes.settings || {});
     setLogs(lRes.logs || []);
+    if (stRes?.staff) setStaffList(stRes.staff);
   }
 
   useEffect(() => { load(); }, []);
@@ -75,6 +80,44 @@ export default function SettingsPage() {
       });
       setStaffMsg(`Staff account created: ${res.admin.username} (${res.admin.role})`);
       setStaffForm({ username: '', email: '', role: 'MANAGER', password: '' });
+      load();
+    } catch (err) {
+      setStaffErr(err.message);
+    }
+  }
+
+  async function saveEditStaff(e) {
+    e.preventDefault();
+    if (!editingStaff) return;
+    setStaffMsg('');
+    setStaffErr('');
+    try {
+      const payload = {
+        username: editingStaff.username,
+        email: editingStaff.email,
+        role: editingStaff.role,
+        isActive: editingStaff.isActive,
+        ...(editingStaff.password ? { password: editingStaff.password } : {}),
+      };
+      const res = await apiFetch(`/admin/staff/${editingStaff.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+      setStaffMsg(res.message);
+      setEditingStaff(null);
+      load();
+    } catch (err) {
+      setStaffErr(err.message);
+    }
+  }
+
+  async function deleteStaff(s) {
+    if (!confirm(`Delete staff admin "${s.username}"?`)) return;
+    setStaffMsg('');
+    setStaffErr('');
+    try {
+      const res = await apiFetch(`/admin/staff/${s.id}`, { method: 'DELETE' });
+      setStaffMsg(res.message);
       load();
     } catch (err) {
       setStaffErr(err.message);
@@ -205,6 +248,65 @@ export default function SettingsPage() {
             {staffMsg && <p style={{ color: 'var(--teal)', fontWeight: 700, marginTop: '10px' }}>{staffMsg}</p>}
             {staffErr && <p className="err">{staffErr}</p>}
           </form>
+
+          {editingStaff && (
+            <form onSubmit={saveEditStaff} className="card-box" style={{ marginTop: '14px', borderColor: 'var(--teal)' }}>
+              <h4 style={{ margin: '0 0 10px' }}>Edit Staff Admin: {editingStaff.username}</h4>
+              <div className="form-grid">
+                <label>Username
+                  <input required value={editingStaff.username} onChange={(e) => setEditingStaff({ ...editingStaff, username: e.target.value })} />
+                </label>
+                <label>Email
+                  <input type="email" required value={editingStaff.email} onChange={(e) => setEditingStaff({ ...editingStaff, email: e.target.value })} />
+                </label>
+                <label>Role
+                  <select value={editingStaff.role} onChange={(e) => setEditingStaff({ ...editingStaff, role: e.target.value })}>
+                    <option value="MANAGER">Manager</option>
+                    <option value="SUPPORT_STAFF">Support Staff</option>
+                    <option value="FINANCE">Finance</option>
+                    <option value="SUPER_ADMIN">Super Admin</option>
+                  </select>
+                </label>
+                <label>Status
+                  <select value={editingStaff.isActive ? 'true' : 'false'} onChange={(e) => setEditingStaff({ ...editingStaff, isActive: e.target.value === 'true' })}>
+                    <option value="true">Active</option>
+                    <option value="false">Disabled</option>
+                  </select>
+                </label>
+                <label>New Password (optional)
+                  <input type="password" minLength={6} value={editingStaff.password || ''} onChange={(e) => setEditingStaff({ ...editingStaff, password: e.target.value })} placeholder="Leave blank to keep unchanged" />
+                </label>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                <button className="btn teal" type="submit">Save Changes</button>
+                <button className="btn ghost" type="button" onClick={() => setEditingStaff(null)}>Cancel</button>
+              </div>
+            </form>
+          )}
+
+          <h3>Manage Admin Access Accounts ({staffList.length})</h3>
+          <div className="table-wrap" style={{ marginBottom: '18px' }}>
+            <table>
+              <thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th>Last Login</th><th>Actions</th></tr></thead>
+              <tbody>
+                {staffList.map((s) => (
+                  <tr key={s.id}>
+                    <td><b>{s.username}</b>{s.id === currentAdmin?.id ? ' (You)' : ''}</td>
+                    <td>{s.email}</td>
+                    <td><span className="badge">{s.role}</span></td>
+                    <td>{s.isActive ? 'Active' : 'Disabled'}</td>
+                    <td>{s.lastLoginAt ? new Date(s.lastLoginAt).toLocaleString() : 'Never'}</td>
+                    <td style={{ display: 'flex', gap: '6px' }}>
+                      <button type="button" className="btn sm teal" onClick={() => setEditingStaff({ ...s, password: '' })}>Edit</button>
+                      {s.id !== currentAdmin?.id && (
+                        <button type="button" className="btn sm danger" onClick={() => deleteStaff(s)}>Delete</button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
 
