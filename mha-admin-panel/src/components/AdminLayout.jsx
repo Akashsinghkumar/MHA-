@@ -6,12 +6,12 @@ const NAV_ITEMS = [
   ['/dashboard', 'Dashboard & Reports'],
   ['/website-cms', 'Website CMS (Design & Data)'],
   ['/gallery-management', 'Gallery Management'],
-  ['/support-center', 'Support Center'],
   ['/users', 'Member & KYC Approval'],
   ['/products', 'Product Management'],
   ['/orders', 'Order Management'],
   ['/offers', 'Offers Management'],
   ['/payouts', 'Payouts & Closing'],
+  ['/support-center', 'Support Center'],
   ['/settings', 'Settings & Logs'],
 ];
 
