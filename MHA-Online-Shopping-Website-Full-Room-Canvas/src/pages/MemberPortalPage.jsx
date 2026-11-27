@@ -21,7 +21,10 @@ export default function MemberPortalPage({ section = 'member' }) {
   const [payouts, setPayouts] = useState([]);
   const [payoutAmt, setPayoutAmt] = useState(1000);
   const [pan, setPan] = useState('');
+  const [aadhaarLast4, setAadhaarLast4] = useState('');
   const [bankOrUpi, setBankOrUpi] = useState('');
+  const [ifscCode, setIfscCode] = useState('');
+  const [kycConsent, setKycConsent] = useState(false);
 
   async function loadMember() {
     if (!getToken()) return;
@@ -43,12 +46,23 @@ export default function MemberPortalPage({ section = 'member' }) {
 
   async function submitKyc(e) {
     e.preventDefault();
+    if (!kycConsent) {
+      toast('Please confirm the KYC declaration checkbox');
+      return;
+    }
     try {
+      const fd = new FormData(e.target);
+      fd.set('fullName', user?.name || 'Member');
+      fd.set('panNumber', pan.trim().toUpperCase());
+      fd.set('bankOrUpi', bankOrUpi.trim());
+      if (ifscCode.trim()) fd.set('ifscCode', ifscCode.trim().toUpperCase());
+      if (aadhaarLast4.trim()) fd.set('aadhaarLast4', aadhaarLast4.trim());
       await apiFetch('/member/kyc', {
         method: 'POST',
-        body: JSON.stringify({ fullName: user?.name || 'Member', panNumber: pan, bankOrUpi }),
+        body: fd,
       });
       setUser((prev) => (prev ? { ...prev, kycStatus: 'Submitted' } : prev));
+      e.target.reset();
       toast('KYC submitted for admin verification');
     } catch (err) {
       toast(err.message);
@@ -176,8 +190,28 @@ export default function MemberPortalPage({ section = 'member' }) {
                 <div className="cb">
                   <h3>KYC Verification</h3>
                   <form onSubmit={submitKyc}>
-                    <label>PAN Number<input className="f" value={pan} onChange={(e) => setPan(e.target.value)} required /></label>
-                    <label>Bank Account or UPI ID<input className="f" value={bankOrUpi} onChange={(e) => setBankOrUpi(e.target.value)} required /></label>
+                    <label>PAN Number (10 chars)
+                      <input className="f" value={pan} onChange={(e) => setPan(e.target.value.toUpperCase())} maxLength={10} required placeholder="e.g. ABCDE1234F" />
+                    </label>
+                    <label>Aadhaar Last 4 Digits (Optional)
+                      <input className="f" value={aadhaarLast4} onChange={(e) => setAadhaarLast4(e.target.value.replace(/\D/g, '').slice(0, 4))} maxLength={4} placeholder="e.g. 1234" />
+                    </label>
+                    <label>Bank Account Number or UPI ID
+                      <input className="f" value={bankOrUpi} onChange={(e) => setBankOrUpi(e.target.value)} required placeholder="Account number or name@upi" />
+                    </label>
+                    <label>IFSC Code (for Bank Account)
+                      <input className="f" value={ifscCode} onChange={(e) => setIfscCode(e.target.value.toUpperCase())} maxLength={11} placeholder="e.g. SBIN0001234" />
+                    </label>
+                    <label>Upload PAN / ID Proof (JPG, PNG, PDF)
+                      <input className="f" name="document" type="file" accept="image/*,.pdf" required />
+                    </label>
+                    <label>Upload Cancelled Cheque / Passbook (Optional)
+                      <input className="f" name="bankProof" type="file" accept="image/*,.pdf" />
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '10px 0' }}>
+                      <input type="checkbox" checked={kycConsent} onChange={(e) => setKycConsent(e.target.checked)} style={{ width: '16px', height: '16px' }} />
+                      <span>I confirm these documents are genuine and belong to me for KYC &amp; payout verification.</span>
+                    </label>
                     <button className="mb" type="submit">Submit KYC</button>
                   </form>
                 </div>

@@ -206,17 +206,34 @@ export async function getMyPayouts(req, res, next) {
 
 export async function submitKyc(req, res, next) {
   try {
-    const { fullName, panNumber, bankOrUpi } = req.body;
-    const docUrl = req.file ? await getUploadedFileUrl(req.file) : null;
+    const { fullName, panNumber, bankOrUpi, ifscCode, aadhaarLast4 } = req.body;
+    const cleanPan = String(panNumber || '').trim().toUpperCase();
+    if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(cleanPan)) {
+      throw new AppError('Enter a valid 10-character PAN number (e.g. ABCDE1234F)', 400);
+    }
+    const cleanAadhaar = String(aadhaarLast4 || '').trim();
+    if (cleanAadhaar && !/^\d{4}$/.test(cleanAadhaar)) {
+      throw new AppError('Aadhaar must be the last 4 digits only', 400);
+    }
+
+    const docFile = req.files?.document?.[0] || req.file || null;
+    const bankFile = req.files?.bankProof?.[0] || null;
+    const [docUrl, bankProofUrl] = await Promise.all([
+      docFile ? getUploadedFileUrl(docFile) : null,
+      bankFile ? getUploadedFileUrl(bankFile) : null,
+    ]);
 
     const kyc = await prisma.$transaction(async (tx) => {
       const created = await tx.kycDocument.create({
         data: {
           userId: req.user.id,
-          fullName,
-          panNumber: panNumber.trim().toUpperCase(),
-          bankOrUpi,
+          fullName: String(fullName || req.user.name || 'Member').trim(),
+          panNumber: cleanPan,
+          aadhaarLast4: cleanAadhaar || null,
+          bankOrUpi: String(bankOrUpi || '').trim(),
+          ifscCode: ifscCode ? String(ifscCode).trim().toUpperCase() : null,
           docUrl,
+          bankProofUrl,
           status: 'Pending',
         },
       });

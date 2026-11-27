@@ -28,6 +28,13 @@ router.post('/rewards/claim', claimReward);
 router.get('/ledger', getMyLedger);
 router.post('/payout', requestPayout);
 router.get('/payouts', getMyPayouts);
-router.post('/kyc', upload.single('document'), submitKyc);
+router.post(
+  '/kyc',
+  upload.fields([
+    { name: 'document', maxCount: 1 },
+    { name: 'bankProof', maxCount: 1 },
+  ]),
+  submitKyc
+);
 
 export default router;

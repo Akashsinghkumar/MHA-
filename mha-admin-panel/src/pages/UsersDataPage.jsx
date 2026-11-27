@@ -129,21 +129,25 @@ export default function UsersDataPage() {
       <h3 style={{ marginTop: '24px' }}>KYC Verification Queue</h3>
       <div className="table-wrap">
         <table>
-          <thead><tr><th>Member</th><th>PAN</th><th>Bank / UPI</th><th>Status</th><th>Action</th></tr></thead>
+          <thead><tr><th>Member</th><th>PAN / Aadhaar</th><th>Bank / IFSC</th><th>Documents</th><th>Status</th><th>Action</th></tr></thead>
           <tbody>
             {queue.length ? queue.map((k) => (
               <tr key={k.id}>
                 <td>{k.user?.name} ({k.user?.phone})</td>
-                <td>{k.panNumber}</td>
-                <td>{k.bankOrUpi}</td>
+                <td><b>{k.panNumber}</b>{k.aadhaarLast4 ? <><br /><small>Aadhaar: ****{k.aadhaarLast4}</small></> : null}</td>
+                <td>{k.bankOrUpi}{k.ifscCode ? <><br /><small>IFSC: {k.ifscCode}</small></> : null}</td>
+                <td style={{ whiteSpace: 'nowrap' }}>
+                  {k.docUrl ? <a href={k.docUrl} target="_blank" rel="noreferrer" className="btn ghost sm">View PAN/ID</a> : '—'}{' '}
+                  {k.bankProofUrl ? <a href={k.bankProofUrl} target="_blank" rel="noreferrer" className="btn ghost sm">Bank Proof</a> : null}
+                </td>
                 <td><span className="badge">{k.status}</span></td>
-                <td>
+                <td style={{ whiteSpace: 'nowrap' }}>
                   <button className="btn teal sm" type="button" onClick={() => reviewKyc(k.userId, 'Approved')}>Approve</button>{' '}
                   <button className="btn danger sm" type="button" onClick={() => reviewKyc(k.userId, 'Rejected')}>Reject</button>
                 </td>
               </tr>
             )) : (
-              <tr><td colSpan="5">No KYC submissions yet.</td></tr>
+              <tr><td colSpan="6">No KYC submissions yet.</td></tr>
             )}
           </tbody>
         </table>
