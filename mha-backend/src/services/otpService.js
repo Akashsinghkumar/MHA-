@@ -21,42 +21,6 @@ async function sendEmailOtp(email, code, purpose) {
     <p style="margin:16px 0 0;font-size:12px;color:#64748b">This code expires in ${OTP_TTL_MINUTES} minutes. Never share it with anyone.</p>
   </div>`;
 
-  if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD,
-      },
-    });
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM || `MHA Online Shopping <${process.env.GMAIL_USER}>`,
-      to: email,
-      subject,
-      html,
-    });
-    return { delivered: true, provider: 'gmail' };
-  }
-
-  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT || 587),
-      secure: Number(process.env.SMTP_PORT) === 465,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM || `MHA Online Shopping <${process.env.SMTP_USER}>`,
-      to: email,
-      subject,
-      html,
-    });
-    return { delivered: true, provider: 'smtp' };
-  }
-
   if (process.env.RESEND_API_KEY) {
     const from = process.env.EMAIL_FROM || 'MHA Shopping <onboarding@resend.dev>';
     const res = await fetch('https://api.resend.com/emails', {
@@ -75,7 +39,7 @@ async function sendEmailOtp(email, code, purpose) {
   }
 
   if (process.env.BREVO_API_KEY) {
-    const senderEmail = process.env.EMAIL_FROM || 'noreply@mha-shop.com';
+    const senderEmail = process.env.EMAIL_FROM || process.env.GMAIL_USER || 'noreply@mha-shop.com';
     const res = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
@@ -94,6 +58,62 @@ async function sendEmailOtp(email, code, purpose) {
       throw new AppError(`Brevo Email OTP failed (${res.status}): ${errBody.slice(0, 120)}`, 502);
     }
     return { delivered: true, provider: 'brevo' };
+  }
+
+  if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+    try {
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        connectionTimeout: 5000,
+        greetingTimeout: 5000,
+        socketTimeout: 7000,
+        auth: {
+          user: process.env.GMAIL_USER,
+          pass: String(process.env.GMAIL_APP_PASSWORD).replace(/\s+/g, ''),
+        },
+      });
+      await transporter.sendMail({
+        from: process.env.EMAIL_FROM || `MHA Online Shopping <${process.env.GMAIL_USER}>`,
+        to: email,
+        subject,
+        html,
+      });
+      return { delivered: true, provider: 'gmail' };
+    } catch (err) {
+      if (process.env.OTP_DEV_MODE === 'true') {
+        return { delivered: false, provider: 'dev', devOtp: code };
+      }
+      throw new AppError(
+        `Gmail SMTP failed (${err.code || err.message}). Railway Trial blocks SMTP ports—add BREVO_API_KEY or RESEND_API_KEY (HTTPS) in Railway Variables.`,
+        502
+      );
+    }
+  }
+
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT || 587),
+        secure: Number(process.env.SMTP_PORT) === 465,
+        connectionTimeout: 5000,
+        greetingTimeout: 5000,
+        socketTimeout: 7000,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+      await transporter.sendMail({
+        from: process.env.EMAIL_FROM || `MHA Online Shopping <${process.env.SMTP_USER}>`,
+        to: email,
+        subject,
+        html,
+      });
+      return { delivered: true, provider: 'smtp' };
+    } catch (err) {
+      throw new AppError(`SMTP failed (${err.code || err.message})`, 502);
+    }
   }
 
   if (process.env.OTP_DEV_MODE === 'true') {

@@ -19,11 +19,9 @@ async function logAdminAction(adminId, action, details, ip) {
 
 // ==================== AUTH & DASHBOARD ====================
 
-function hasEmailProvider() {
+function hasHttpsEmailProvider() {
   return Boolean(
-    (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) ||
-      (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) ||
-      process.env.RESEND_API_KEY ||
+    process.env.RESEND_API_KEY ||
       process.env.BREVO_API_KEY ||
       process.env.OTP_DEV_MODE === 'true'
   );
@@ -48,7 +46,9 @@ export async function adminLogin(req, res, next) {
       throw new AppError('Invalid admin credentials', 401);
     }
 
-    const twoFactorActive = process.env.ADMIN_2FA_ENABLED !== 'false' && hasEmailProvider();
+    const twoFactorActive =
+      process.env.ADMIN_2FA_ENABLED === 'true' ||
+      (process.env.ADMIN_2FA_ENABLED !== 'false' && hasHttpsEmailProvider());
     if (twoFactorActive && admin.email) {
       if (!otp) {
         const otpRes = await createAndSendOtp({
