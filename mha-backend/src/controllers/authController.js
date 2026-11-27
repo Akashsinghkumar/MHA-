@@ -50,7 +50,7 @@ export async function sendOtp(req, res, next) {
       }
     }
 
-    if (purpose === 'login') {
+    if (purpose === 'login' || purpose === 'reset') {
       const existing = await prisma.user.findFirst({
         where: channel === 'email' ? { email: cleanTarget } : { phone: cleanTarget },
         select: { id: true, isBlocked: true },
@@ -66,6 +66,40 @@ export async function sendOtp(req, res, next) {
 
     const result = await createAndSendOtp({ channel, target: cleanTarget, purpose });
     res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function resetPassword(req, res, next) {
+  try {
+    const { channel, target, code, newPassword } = req.body;
+    const cleanTarget = channel === 'email' ? target.trim().toLowerCase() : target.trim();
+
+    await verifyOtpCode({ channel, target: cleanTarget, code, purpose: 'reset' });
+
+    const user = await prisma.user.findFirst({
+      where: channel === 'email' ? { email: cleanTarget } : { phone: cleanTarget },
+    });
+    if (!user) {
+      throw new AppError('Account not found', 404);
+    }
+    if (user.isBlocked) {
+      throw new AppError('Account suspended. Contact support.', 403);
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    const isPhoneChannel = channel === 'phone' || channel === 'whatsapp';
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        ...(channel === 'email' ? { emailVerified: true } : {}),
+        ...(isPhoneChannel ? { phoneVerified: true } : {}),
+      },
+    });
+
+    res.json({ message: 'Password reset successfully. Please sign in.' });
   } catch (err) {
     next(err);
   }

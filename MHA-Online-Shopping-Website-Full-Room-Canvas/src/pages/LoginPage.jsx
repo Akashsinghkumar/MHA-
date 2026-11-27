@@ -41,6 +41,13 @@ export default function LoginPage() {
   const [loginOtpSent, setLoginOtpSent] = useState(false);
   const [loginOtp, setLoginOtp] = useState('');
 
+  const [resetChannel, setResetChannel] = useState('email');
+  const [resetTarget, setResetTarget] = useState('');
+  const [resetOtpSent, setResetOtpSent] = useState(false);
+  const [resetOtp, setResetOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
@@ -159,6 +166,35 @@ export default function LoginPage() {
     }
   }
 
+  async function handleSendResetOtp() {
+    setError('');
+    setInfo('');
+    const target = resetChannel === 'email' ? resetTarget.trim().toLowerCase() : cleanPhoneInput(resetTarget);
+    if (resetChannel === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(target)) {
+      setError('Enter a valid email address.');
+      return;
+    }
+    if ((resetChannel === 'phone' || resetChannel === 'whatsapp') && !/^\d{10}$/.test(target)) {
+      setError('Enter a valid 10-digit mobile number.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await apiFetch('/auth/send-otp', {
+        method: 'POST',
+        body: JSON.stringify({ channel: resetChannel, target, purpose: 'reset' }),
+      });
+      setResetOtpSent(true);
+      const devNote = res.devOtp ? ` (Test OTP: ${res.devOtp})` : '';
+      setInfo(`${res.message}${devNote}`);
+      toast(res.message);
+    } catch (err) {
+      setError(err.message || 'Could not send reset OTP');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
@@ -206,6 +242,45 @@ export default function LoginPage() {
         navigate('/member');
       } catch (err) {
         setError(err.message || 'Registration failed');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    if (tab === 'forgot') {
+      if (!resetOtpSent) {
+        await handleSendResetOtp();
+        return;
+      }
+      if (newPassword !== confirmNewPassword) {
+        setError('New passwords do not match.');
+        return;
+      }
+      const target = resetChannel === 'email' ? resetTarget.trim().toLowerCase() : cleanPhoneInput(resetTarget);
+      setLoading(true);
+      try {
+        const res = await apiFetch('/auth/reset-password', {
+          method: 'POST',
+          body: JSON.stringify({
+            channel: resetChannel,
+            target,
+            code: resetOtp.trim(),
+            newPassword,
+          }),
+        });
+        toast('Password updated! Please sign in.');
+        setTab('login');
+        setLoginMode('password');
+        setIdentifier(target);
+        setPassword('');
+        setResetOtpSent(false);
+        setResetOtp('');
+        setNewPassword('');
+        setConfirmNewPassword('');
+        setInfo(res.message);
+      } catch (err) {
+        setError(err.message || 'Could not reset password');
       } finally {
         setLoading(false);
       }
@@ -285,17 +360,19 @@ export default function LoginPage() {
 
         <form className="auth-split-form" onSubmit={handleSubmit}>
           <div className="auth-form-top">
-            <small>{tab === 'register' ? 'NEW CUSTOMER' : 'WELCOME BACK'}</small>
+            <small>{tab === 'register' ? 'NEW CUSTOMER' : tab === 'forgot' ? 'ACCOUNT RECOVERY' : 'WELCOME BACK'}</small>
             <button type="button" className="auth-home-link" onClick={() => navigate('/')}>
               ← Back to Home
             </button>
           </div>
 
-          <h1>{tab === 'register' ? 'Create your account' : 'Sign in to your account'}</h1>
+          <h1>{tab === 'register' ? 'Create your account' : tab === 'forgot' ? 'Reset your password' : 'Sign in to your account'}</h1>
           <p className="auth-form-subtitle">
             {tab === 'register'
               ? 'Start your shopping journey with MHA.'
-              : 'Access your orders, referral network, and rewards.'}
+              : tab === 'forgot'
+                ? 'Verify via Email, SMS, or WhatsApp OTP to set a new password.'
+                : 'Access your orders, referral network, and rewards.'}
           </p>
 
           {tab === 'register' ? (
@@ -359,8 +436,8 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    minLength={6}
-                    placeholder="Password"
+                    minLength={8}
+                    placeholder="Min 8 chars (letters + numbers)"
                   />
                 </label>
                 <label>
@@ -371,7 +448,7 @@ export default function LoginPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
-                    minLength={6}
+                    minLength={8}
                     placeholder="Confirm password"
                   />
                 </label>
@@ -479,6 +556,90 @@ export default function LoginPage() {
                 </button>
               </p>
             </>
+          ) : tab === 'forgot' ? (
+            <>
+              <div className="auth-method-grid" style={{ marginBottom: '10px' }}>
+                {VERIFY_METHODS.map((m) => {
+                  const active = resetChannel === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      className={`auth-method-card ${active ? 'active' : ''}`}
+                      onClick={() => { setResetChannel(m.id); setResetOtpSent(false); setError(''); setInfo(''); }}
+                    >
+                      <span className="auth-method-icon">{m.icon}</span>
+                      <b>{m.label}</b>
+                      <span className="auth-method-dot">{active ? '✓' : ''}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <label>
+                {resetChannel === 'email' ? 'Registered Email Address' : 'Registered 10-Digit Mobile Number'}
+                <input
+                  className="auth-pill-input"
+                  value={resetTarget}
+                  onChange={(e) => { setResetTarget(e.target.value); setResetOtpSent(false); }}
+                  required
+                  placeholder={resetChannel === 'email' ? 'you@gmail.com' : '+91 Mobile number'}
+                />
+              </label>
+
+              {resetOtpSent && (
+                <>
+                  <label>
+                    6-Digit OTP
+                    <input
+                      className="auth-pill-input"
+                      value={resetOtp}
+                      onChange={(e) => setResetOtp(e.target.value)}
+                      required
+                      maxLength={6}
+                      placeholder="Enter 6-digit OTP"
+                    />
+                  </label>
+                  <div className="auth-row-2">
+                    <label>
+                      New Password
+                      <input
+                        className="auth-pill-input"
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        required
+                        minLength={8}
+                        placeholder="Min 8 chars (A-Z + 0-9)"
+                      />
+                    </label>
+                    <label>
+                      Confirm Password
+                      <input
+                        className="auth-pill-input"
+                        type="password"
+                        value={confirmNewPassword}
+                        onChange={(e) => setConfirmNewPassword(e.target.value)}
+                        required
+                        minLength={8}
+                        placeholder="Confirm new password"
+                      />
+                    </label>
+                  </div>
+                </>
+              )}
+
+              <button className="auth-submit-btn" type="submit" disabled={loading}>
+                {loading ? 'Please wait…' : resetOtpSent ? 'Reset Password →' : 'Send Reset OTP →'}
+              </button>
+
+              <p className="auth-switch-text">
+                Remembered your password?{' '}
+                <button type="button" onClick={() => { setTab('login'); setError(''); setInfo(''); }}>
+                  Back to Sign In
+                </button>
+              </p>
+            </>
           ) : (
             <>
               <div className="auth-login-tabs">
@@ -530,17 +691,28 @@ export default function LoginPage() {
               </label>
 
               {loginMode === 'password' ? (
-                <label>
-                  Password
-                  <input
-                    className="auth-pill-input"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    placeholder="Enter your password"
-                  />
-                </label>
+                <>
+                  <label>
+                    Password
+                    <input
+                      className="auth-pill-input"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      placeholder="Enter your password"
+                    />
+                  </label>
+                  <div style={{ textAlign: 'right', marginTop: '-4px' }}>
+                    <button
+                      type="button"
+                      className="auth-home-link"
+                      onClick={() => { setTab('forgot'); setError(''); setInfo(''); }}
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+                </>
               ) : (
                 loginOtpSent && (
                   <label>
