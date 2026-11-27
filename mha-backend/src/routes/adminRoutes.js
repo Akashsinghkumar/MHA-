@@ -2,8 +2,11 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import {
   adminLogin,
+  adminSendResetOtp,
+  adminResetPassword,
   adminRegister,
   adminChangePassword,
+  adminUpdateProfile,
   getDashboardStats,
   adminCreateProduct,
   adminUpdateProduct,
@@ -51,8 +54,11 @@ const adminLoginLimiter = rateLimit({
 });
 
 router.post('/login', adminLoginLimiter, adminLogin);
+router.post('/forgot-password/send-otp', adminLoginLimiter, adminSendResetOtp);
+router.post('/forgot-password/reset', adminLoginLimiter, adminResetPassword);
 
 router.use(requireAdmin);
+router.put('/profile', adminUpdateProfile);
 router.put('/change-password', adminChangePassword);
 router.post('/register', requirePermission('*'), adminRegister);
 router.get('/dashboard', getDashboardStats);

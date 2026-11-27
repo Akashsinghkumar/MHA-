@@ -1,9 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { apiFetch, getAdminUser } from '../api.js';
+import { useSearchParams } from 'react-router-dom';
+import { apiFetch, getAdminUser, setAdminUser } from '../api.js';
 
 export default function SettingsPage() {
+  const [searchParams] = useSearchParams();
+  const isDefaultSetup = searchParams.get('setup') === '1';
   const currentAdmin = getAdminUser();
   const isSuperAdmin = currentAdmin?.role === 'SUPER_ADMIN';
+
+  const [profileForm, setProfileForm] = useState({
+    username: currentAdmin?.username || '',
+    email: currentAdmin?.email || '',
+  });
+  const [profileMsg, setProfileMsg] = useState('');
+  const [profileErr, setProfileErr] = useState('');
 
   const [settings, setSettings] = useState({});
   const [logs, setLogs] = useState([]);
@@ -29,6 +39,23 @@ export default function SettingsPage() {
   }
 
   useEffect(() => { load(); }, []);
+
+  async function updateProfile(e) {
+    e.preventDefault();
+    setProfileMsg('');
+    setProfileErr('');
+    try {
+      const res = await apiFetch('/admin/profile', {
+        method: 'PUT',
+        body: JSON.stringify(profileForm),
+      });
+      setAdminUser(res.admin);
+      setProfileMsg(res.message);
+      load();
+    } catch (err) {
+      setProfileErr(err.message);
+    }
+  }
 
   async function save(e) {
     e.preventDefault();
@@ -81,7 +108,40 @@ export default function SettingsPage() {
   return (
     <>
       <h2>Settings &amp; Audit Logs</h2>
+      {isDefaultSetup && (
+        <div className="err" style={{ background: 'rgba(255, 210, 77, 0.14)', color: '#ffd24d', border: '1px solid rgba(255, 210, 77, 0.35)', marginBottom: '14px' }}>
+          Security Notice: You signed in with the default password. Please set your real Owner Gmail below and update your Admin Password!
+        </div>
+      )}
       {msg && <p style={{ color: 'var(--teal)', fontWeight: 700 }}>{msg}</p>}
+
+      <h3>Owner Profile &amp; 2FA Email</h3>
+      <form onSubmit={updateProfile} className="card-box">
+        <div className="form-grid">
+          <label>Admin Username
+            <input
+              required
+              value={profileForm.username}
+              onChange={(e) => setProfileForm({ ...profileForm, username: e.target.value })}
+              placeholder="owner_admin"
+            />
+          </label>
+          <label>Owner Email (for 2FA &amp; Password Reset OTP)
+            <input
+              type="email"
+              required
+              value={profileForm.email}
+              onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+              placeholder="yourname@gmail.com"
+            />
+          </label>
+        </div>
+        <button className="btn teal" style={{ marginTop: '12px' }} type="submit">Save Owner Profile</button>
+        {profileMsg && <p style={{ color: 'var(--teal)', fontWeight: 700, marginTop: '10px' }}>{profileMsg}</p>}
+        {profileErr && <p className="err">{profileErr}</p>}
+      </form>
+
+      <h3>Store Settings</h3>
       <form onSubmit={save} className="card-box">
         <div className="form-grid">
           <label>Unit Value (₹)

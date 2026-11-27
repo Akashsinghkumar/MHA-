@@ -18,10 +18,25 @@ async function logAdminAction(adminId, action, details, ip) {
 
 // ==================== AUTH & DASHBOARD ====================
 
+function hasEmailProvider() {
+  return Boolean(
+    (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) ||
+      (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) ||
+      process.env.RESEND_API_KEY ||
+      process.env.BREVO_API_KEY ||
+      process.env.OTP_DEV_MODE === 'true'
+  );
+}
+
 export async function adminLogin(req, res, next) {
   try {
     const { username, password, otp } = req.body;
-    const admin = await prisma.adminUser.findUnique({ where: { username } });
+    const identifier = String(username || '').trim();
+    const admin = await prisma.adminUser.findFirst({
+      where: {
+        OR: [{ username: identifier }, { email: identifier.toLowerCase() }],
+      },
+    });
     if (!admin || !admin.isActive) {
       throw new AppError('Invalid admin credentials', 401);
     }
@@ -32,7 +47,8 @@ export async function adminLogin(req, res, next) {
       throw new AppError('Invalid admin credentials', 401);
     }
 
-    if (process.env.ADMIN_2FA_ENABLED === 'true' && admin.email) {
+    const twoFactorActive = process.env.ADMIN_2FA_ENABLED !== 'false' && hasEmailProvider();
+    if (twoFactorActive && admin.email) {
       if (!otp) {
         const otpRes = await createAndSendOtp({
           channel: 'email',
@@ -74,9 +90,91 @@ export async function adminLogin(req, res, next) {
         email: admin.email,
         role: admin.role,
         permissions: admin.permissions,
+        mustChangePassword: password === 'ChangeMeAdmin123!',
       },
       token,
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function adminSendResetOtp(req, res, next) {
+  try {
+    const identifier = String(req.body.identifier || '').trim();
+    const admin = await prisma.adminUser.findFirst({
+      where: {
+        OR: [{ username: identifier }, { email: identifier.toLowerCase() }],
+      },
+    });
+    if (!admin || !admin.isActive || !admin.email) {
+      throw new AppError('No active admin account found with that username or email', 404);
+    }
+    const otpRes = await createAndSendOtp({
+      channel: 'email',
+      target: admin.email,
+      purpose: 'admin_reset',
+    });
+    const [localPart, domain] = admin.email.split('@');
+    const masked = `${localPart.slice(0, 2)}***@${domain}`;
+    res.json({
+      emailMasked: masked,
+      message: `Reset OTP sent to ${masked}`,
+      ...(otpRes.devOtp ? { devOtp: otpRes.devOtp } : {}),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function adminResetPassword(req, res, next) {
+  try {
+    const { identifier, otp, newPassword } = req.body;
+    if (!identifier || !otp || !newPassword || newPassword.length < 8) {
+      throw new AppError('Username/email, 6-digit OTP, and new password (min 8 chars) are required', 400);
+    }
+    const cleanId = String(identifier).trim();
+    const admin = await prisma.adminUser.findFirst({
+      where: {
+        OR: [{ username: cleanId }, { email: cleanId.toLowerCase() }],
+      },
+    });
+    if (!admin || !admin.isActive || !admin.email) {
+      throw new AppError('Admin account not found', 404);
+    }
+    await verifyOtpCode({
+      channel: 'email',
+      target: admin.email,
+      code: String(otp).trim(),
+      purpose: 'admin_reset',
+    });
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await prisma.adminUser.update({
+      where: { id: admin.id },
+      data: { passwordHash },
+    });
+    await logAdminAction(admin.id, 'ADMIN_PASSWORD_RESET', `Password reset via OTP for ${admin.username}`, req.ip);
+    res.json({ message: 'Admin password reset successfully. Please sign in.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function adminUpdateProfile(req, res, next) {
+  try {
+    const { username, email } = req.body;
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    const cleanUsername = String(username || '').trim();
+    if (!cleanUsername || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      throw new AppError('Valid username and email address are required', 400);
+    }
+    const updated = await prisma.adminUser.update({
+      where: { id: req.admin.id },
+      data: { username: cleanUsername, email: cleanEmail },
+      select: { id: true, username: true, email: true, role: true, permissions: true },
+    });
+    await logAdminAction(req.admin.id, 'ADMIN_PROFILE_UPDATE', `Updated profile (${updated.username} / ${updated.email})`, req.ip);
+    res.json({ admin: updated, message: 'Admin profile updated.' });
   } catch (err) {
     next(err);
   }
