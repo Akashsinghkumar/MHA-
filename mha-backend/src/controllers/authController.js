@@ -15,6 +15,25 @@ function makeReferralCode(phone) {
   return `MHA${suffix}${rand}`;
 }
 
+export async function checkReferralCode(req, res, next) {
+  try {
+    const code = String(req.params.code || '').trim().toUpperCase();
+    if (!code) {
+      return res.json({ valid: false });
+    }
+    const referrer = await prisma.user.findUnique({
+      where: { referralCode: code },
+      select: { id: true, name: true, referralCode: true },
+    });
+    if (!referrer) {
+      return res.json({ valid: false });
+    }
+    res.json({ valid: true, referralCode: referrer.referralCode, referrerName: referrer.name });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function sendOtp(req, res, next) {
   try {
     const { channel, target, purpose } = req.body;
@@ -26,7 +45,8 @@ export async function sendOtp(req, res, next) {
         select: { id: true },
       });
       if (existing) {
-        throw new AppError(`An account with this ${channel} already exists`, 409);
+        const label = channel === 'email' ? 'email' : 'phone number';
+        throw new AppError(`An account with this ${label} already exists`, 409);
       }
     }
 
@@ -36,7 +56,8 @@ export async function sendOtp(req, res, next) {
         select: { id: true, isBlocked: true },
       });
       if (!existing) {
-        throw new AppError(`No account found with this ${channel}`, 404);
+        const label = channel === 'email' ? 'email' : 'phone number';
+        throw new AppError(`No account found with this ${label}`, 404);
       }
       if (existing.isBlocked) {
         throw new AppError('Account suspended. Contact support.', 403);
@@ -62,15 +83,16 @@ export async function verifyOtp(req, res, next) {
         where: channel === 'email' ? { email: cleanTarget } : { phone: cleanTarget },
       });
       if (!user) {
-        throw new AppError(`No account found with this ${channel}`, 404);
+        throw new AppError(`No account found with this ${channel === 'email' ? 'email' : 'phone number'}`, 404);
       }
       if (user.isBlocked) {
         throw new AppError('Account suspended. Contact support.', 403);
       }
+      const isPhoneChannel = channel === 'phone' || channel === 'whatsapp';
       if (channel === 'email' && !user.emailVerified) {
         await prisma.user.update({ where: { id: user.id }, data: { emailVerified: true } });
       }
-      if (channel === 'phone' && !user.phoneVerified) {
+      if (isPhoneChannel && !user.phoneVerified) {
         await prisma.user.update({ where: { id: user.id }, data: { phoneVerified: true } });
       }
       const token = signUserToken(user.id);
@@ -84,7 +106,7 @@ export async function verifyOtp(req, res, next) {
           referralCode: user.referralCode,
           kycStatus: user.kycStatus,
           emailVerified: channel === 'email' ? true : user.emailVerified,
-          phoneVerified: channel === 'phone' ? true : user.phoneVerified,
+          phoneVerified: isPhoneChannel ? true : user.phoneVerified,
         },
         token,
       });
@@ -98,19 +120,24 @@ export async function verifyOtp(req, res, next) {
 
 export async function register(req, res, next) {
   try {
-    const { name, phone, email, password, referralCode } = req.body;
+    const { name, phone, email, password, referralCode, verificationChannel = 'email' } = req.body;
     const cleanPhone = phone.trim();
     const cleanEmail = email ? email.trim().toLowerCase() : '';
+    const verifyTarget = verificationChannel === 'email' ? cleanEmail : cleanPhone;
 
-    const phoneOk = await hasRecentVerifiedOtp({ channel: 'phone', target: cleanPhone, purpose: 'register' });
-    if (!phoneOk) {
-      throw new AppError('Please verify your mobile number with OTP first', 400);
-    }
-    if (cleanEmail) {
-      const emailOk = await hasRecentVerifiedOtp({ channel: 'email', target: cleanEmail, purpose: 'register' });
-      if (!emailOk) {
-        throw new AppError('Please verify your email address with OTP first', 400);
-      }
+    const otpOk = await hasRecentVerifiedOtp({
+      channel: verificationChannel,
+      target: verifyTarget,
+      purpose: 'register',
+    });
+    if (!otpOk) {
+      const label =
+        verificationChannel === 'whatsapp'
+          ? 'WhatsApp'
+          : verificationChannel === 'phone'
+            ? 'SMS'
+            : 'Email';
+      throw new AppError(`Please verify your ${label} OTP first`, 400);
     }
 
     const existing = await prisma.user.findFirst({
@@ -123,14 +150,15 @@ export async function register(req, res, next) {
     }
 
     let referredById = null;
-    if (referralCode) {
+    if (referralCode && referralCode.trim()) {
       const referrer = await prisma.user.findUnique({
         where: { referralCode: referralCode.trim().toUpperCase() },
         select: { id: true },
       });
-      if (referrer) {
-        referredById = referrer.id;
+      if (!referrer) {
+        throw new AppError('Invalid referral code. Leave blank if you do not have one.', 400);
       }
+      referredById = referrer.id;
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
@@ -140,8 +168,8 @@ export async function register(req, res, next) {
         phone: cleanPhone,
         email: cleanEmail || null,
         passwordHash,
-        emailVerified: Boolean(cleanEmail),
-        phoneVerified: true,
+        emailVerified: verificationChannel === 'email',
+        phoneVerified: verificationChannel === 'phone' || verificationChannel === 'whatsapp',
         referralCode: makeReferralCode(cleanPhone),
         referredById,
       },
@@ -151,6 +179,8 @@ export async function register(req, res, next) {
         email: true,
         phone: true,
         referralCode: true,
+        referredById: true,
+        referredBy: { select: { id: true, name: true, referralCode: true } },
         kycStatus: true,
         emailVerified: true,
         phoneVerified: true,

@@ -5,6 +5,7 @@ import {
   login,
   sendOtp,
   verifyOtp,
+  checkReferralCode,
   logout,
   getMe,
   updateProfile,
@@ -23,6 +24,7 @@ const registerSchema = z.object({
   email: z.string().email('Enter a valid email address'),
   password: z.string().min(6),
   referralCode: z.string().optional(),
+  verificationChannel: z.enum(['email', 'phone', 'whatsapp']).default('email'),
 });
 
 const loginSchema = z.object({
@@ -32,12 +34,12 @@ const loginSchema = z.object({
 
 const sendOtpSchema = z
   .object({
-    channel: z.enum(['email', 'phone']),
+    channel: z.enum(['email', 'phone', 'whatsapp']),
     target: z.string().min(3),
     purpose: z.enum(['register', 'login', 'verify']).default('register'),
   })
   .superRefine((val, ctx) => {
-    if (val.channel === 'phone' && !/^\d{10}$/.test(val.target.trim())) {
+    if ((val.channel === 'phone' || val.channel === 'whatsapp') && !/^\d{10}$/.test(val.target.trim())) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Enter a valid 10-digit mobile number', path: ['target'] });
     }
     if (val.channel === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.target.trim())) {
@@ -46,12 +48,13 @@ const sendOtpSchema = z
   });
 
 const verifyOtpSchema = z.object({
-  channel: z.enum(['email', 'phone']),
+  channel: z.enum(['email', 'phone', 'whatsapp']),
   target: z.string().min(3),
   code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit OTP'),
   purpose: z.enum(['register', 'login', 'verify']).default('register'),
 });
 
+router.get('/referral/:code', checkReferralCode);
 router.post('/send-otp', validateBody(sendOtpSchema), sendOtp);
 router.post('/verify-otp', validateBody(verifyOtpSchema), verifyOtp);
 router.post('/register', validateBody(registerSchema), register);

@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
+import nodemailer from 'nodemailer';
 import prisma from '../config/db.js';
 import { AppError } from '../middleware/errorHandler.js';
 
@@ -14,11 +15,47 @@ function generateSixDigitOtp() {
 async function sendEmailOtp(email, code, purpose) {
   const subject = `Your MHA verification code: ${code}`;
   const html = `<div style="font-family:sans-serif;max-width:480px;padding:20px;border:1px solid #e5e7eb;border-radius:10px">
-    <h2 style="margin:0 0 8px;color:#0f172a">MHA Online Shopping</h2>
+    <h2 style="margin:0 0 8px;color:#064896">MHA Online Shopping</h2>
     <p style="margin:0 0 16px;color:#475569">Use this one-time verification code to complete your ${purpose}:</p>
-    <div style="font-size:28px;font-weight:700;letter-spacing:6px;padding:12px 16px;background:#f8fafc;border-radius:8px;text-align:center;color:#0f172a">${code}</div>
+    <div style="font-size:28px;font-weight:700;letter-spacing:6px;padding:12px 16px;background:#f0f6ff;border-radius:8px;text-align:center;color:#064896">${code}</div>
     <p style="margin:16px 0 0;font-size:12px;color:#64748b">This code expires in ${OTP_TTL_MINUTES} minutes. Never share it with anyone.</p>
   </div>`;
+
+  if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD,
+      },
+    });
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM || `MHA Online Shopping <${process.env.GMAIL_USER}>`,
+      to: email,
+      subject,
+      html,
+    });
+    return { delivered: true, provider: 'gmail' };
+  }
+
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT || 587),
+      secure: Number(process.env.SMTP_PORT) === 465,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM || `MHA Online Shopping <${process.env.SMTP_USER}>`,
+      to: email,
+      subject,
+      html,
+    });
+    return { delivered: true, provider: 'smtp' };
+  }
 
   if (process.env.RESEND_API_KEY) {
     const from = process.env.EMAIL_FROM || 'MHA Shopping <onboarding@resend.dev>';
@@ -64,7 +101,7 @@ async function sendEmailOtp(email, code, purpose) {
   }
 
   throw new AppError(
-    'Email OTP provider is not configured. Add RESEND_API_KEY or BREVO_API_KEY in Railway Variables.',
+    'Email OTP provider is not configured. Add GMAIL_USER + GMAIL_APP_PASSWORD (or RESEND_API_KEY) in Railway Variables.',
     503
   );
 }
@@ -141,8 +178,81 @@ async function sendSmsOtp(phone, code) {
   );
 }
 
+async function sendWhatsAppOtp(phone, code) {
+  const fullPhone = phone.startsWith('+') ? phone.replace('+', '') : `91${phone}`;
+
+  if (process.env.WHATSAPP_CLOUD_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID) {
+    const res = await fetch(
+      `https://graph.facebook.com/v21.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.WHATSAPP_CLOUD_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: fullPhone,
+          type: 'template',
+          template: {
+            name: process.env.WHATSAPP_OTP_TEMPLATE || 'auth_otp',
+            language: { code: 'en' },
+            components: [
+              { type: 'body', parameters: [{ type: 'text', text: code }] },
+              { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: code }] },
+            ],
+          },
+        }),
+      }
+    );
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      throw new AppError(`WhatsApp Cloud API failed (${res.status}): ${errBody.slice(0, 120)}`, 502);
+    }
+    return { delivered: true, provider: 'whatsapp-cloud' };
+  }
+
+  if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_WHATSAPP_FROM) {
+    const toNumber = `whatsapp:+${fullPhone}`;
+    const fromNumber = process.env.TWILIO_WHATSAPP_FROM.startsWith('whatsapp:')
+      ? process.env.TWILIO_WHATSAPP_FROM
+      : `whatsapp:${process.env.TWILIO_WHATSAPP_FROM}`;
+    const body = new URLSearchParams({
+      To: toNumber,
+      From: fromNumber,
+      Body: `Your MHA Online Shopping verification code is ${code}. Valid for ${OTP_TTL_MINUTES} minutes.`,
+    });
+    const auth = Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString('base64');
+    const res = await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${auth}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body,
+      }
+    );
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      throw new AppError(`Twilio WhatsApp OTP failed (${res.status}): ${errBody.slice(0, 120)}`, 502);
+    }
+    return { delivered: true, provider: 'twilio-whatsapp' };
+  }
+
+  if (process.env.OTP_DEV_MODE === 'true') {
+    return { delivered: false, provider: 'dev', devOtp: code };
+  }
+
+  throw new AppError(
+    'WhatsApp OTP provider is not configured. Add WHATSAPP_CLOUD_TOKEN + WHATSAPP_PHONE_NUMBER_ID or TWILIO_WHATSAPP_FROM in Railway Variables.',
+    503
+  );
+}
+
 /**
- * Generates, stores (hashed), and sends a 6-digit OTP to email or phone.
+ * Generates, stores (hashed), and sends a 6-digit OTP to email, phone (SMS), or whatsapp.
  */
 export async function createAndSendOtp({ channel, target, purpose = 'register' }) {
   const cleanTarget = channel === 'email' ? target.trim().toLowerCase() : target.trim();
@@ -160,10 +270,10 @@ export async function createAndSendOtp({ channel, target, purpose = 'register' }
   const codeHash = await bcrypt.hash(code, 10);
   const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
 
-  const delivery =
-    channel === 'email'
-      ? await sendEmailOtp(cleanTarget, code, purpose)
-      : await sendSmsOtp(cleanTarget, code);
+  let delivery;
+  if (channel === 'email') delivery = await sendEmailOtp(cleanTarget, code, purpose);
+  else if (channel === 'whatsapp') delivery = await sendWhatsAppOtp(cleanTarget, code);
+  else delivery = await sendSmsOtp(cleanTarget, code);
 
   await prisma.otpVerification.create({
     data: {
@@ -175,10 +285,11 @@ export async function createAndSendOtp({ channel, target, purpose = 'register' }
     },
   });
 
+  const channelLabel = channel === 'whatsapp' ? 'WhatsApp' : channel === 'phone' ? 'mobile SMS' : 'email';
   return {
     message: delivery.delivered
-      ? `OTP sent to your ${channel}`
-      : `Test OTP generated (${channel} provider in dev mode)`,
+      ? `OTP sent to your ${channelLabel}`
+      : `Test OTP generated (${channelLabel} provider in dev mode)`,
     expiresInSeconds: OTP_TTL_MINUTES * 60,
     ...(delivery.devOtp ? { devOtp: delivery.devOtp } : {}),
   };
